@@ -23,8 +23,6 @@
 
   app.vm.init = function() {
     this.videos = m.request({method: 'GET', url: 'data.json', type: app.Video});
-
-    this.selectedVideo = m.prop();
   };
 
   // Controller
