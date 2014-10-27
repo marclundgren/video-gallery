@@ -2,7 +2,6 @@
 
 (function() {
   'use strict';
-
   var app = {};
 
   // Model
