@@ -7,7 +7,9 @@
 
   // Model
   app.Video = function(data) {
-    this.thumbnail  = m.prop(data.src);
+    var url = '//fidm.edu/'; // temp
+
+    this.thumbnail  = m.prop(url + data.src);
     this.altTitle   = m.prop(data.altTitle);
     this.title      = m.prop(data.title);
     this.mp4        = m.prop(data.mp4);
@@ -15,7 +17,7 @@
     this.ogg        = m.prop(data.ogg);
     this.flash      = m.prop(data.flash);
     this.duration   = m.prop(data.duration);
-    this.poster     = m.prop(data.poster);
+    this.poster     = m.prop(url + data.poster);
     this.content    = m.prop(data.content);
   };
 
@@ -29,22 +31,20 @@
     };
 
     videoPlayer.view = function(ctrl) {
-      var video = app.vm.video;
-
-      // var data = ctrl.data;
-      // console.log('data: ', data);
+      var video = app.vm.selectedVideo();
 
       if (video) {
         return [
           m('div', [
+            m('video', {controls: true, poster: video.poster(), src: video.ogg()}),
             m('h1', video.title()),
-            m('video', {src: video.ogg(), controls: true}),
-            m('div.content', video.content())
+            m('div.content', video.content()),
+            m('hr')
           ])
         ];
       }
       else {
-        return m('div', 'Please select a video.');
+        return m('');
       }
 
     };
@@ -53,19 +53,18 @@
 
   app.videoList = function() {
     var videoList = {};
-    // videoList.vm = {};
     videoList.view = function(ctrl) {
+
+      var data = ctrl.data();
+
       return [
         app.vm.videos ? m('ul', [
-          app.vm.videos().map(function(video) {
-            return m('li', [
+          app.vm.videos().filter(app.vm.filter).map(function(video) {
+            return m('li', {style: {display: 'block'}, onclick: ctrl.binds.bind(this, video)}, [
+              m('img.thumbnail', {src: video.thumbnail()}),
               m('h4', video.title()),
               m('div.duration', video.duration())
-            ],
-            ctrl.data().filter(app.vm.filter).map(function(item) {
-              return m('div', {onclick: ctrl.binds.bind(this, item)}, item.title);
-            })
-            );
+            ]);
           })
         ]) : ''
       ];
@@ -80,11 +79,23 @@
     this.videoPlayer = new app.videoPlayer();
     this.videoList = new app.videoList();
 
-    this.videos = m.request({method: 'GET', url: 'data.json', type: app.Video});
+    this.videos = m.request({method: 'GET', url: '../data.json', type: app.Video});
 
     this.selectedVideo = m.prop();
 
     this.initialized = true;
+  };
+
+  app.vm.filter = function(item) {
+    var filter = false;
+
+    var selectedVideo = app.vm.selectedVideo();
+
+    if (selectedVideo) {
+      filter = selectedVideo.title() === item.title();
+    }
+
+    return !filter;
   };
 
   // Controller
@@ -103,26 +114,9 @@
     var vm = app.vm;
 
     return m('div', [
-        m('button[type=button]', {onclick: ctrl.loadVideos}, 'Load videos'),
         vm.videoPlayer.view(),
         vm.videoList.view({data: vm.videos, binds: vm.selectedVideo}),
     ]);
-  };
-
-  app._view = function(ctrl) {
-    return [
-      m('button[type=button]', {onclick: ctrl.loadVideos}, 'Load videos'),
-        app.vm.videos ? m('ul', [
-          app.vm.videos().map(function(video) {
-            return m('li', [
-                m('h3', video.title()),
-                m('video', {src: video.ogg(), controls: true}),
-                m('div.duration', video.duration())
-              ]
-            );
-        })
-      ]) : ''
-    ];
   };
 
   m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
