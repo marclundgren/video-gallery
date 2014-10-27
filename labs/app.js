@@ -7,9 +7,7 @@
 
   // Model
   app.Video = function(data) {
-    var url = '//fidm.edu/'; // temp
-
-    this.thumbnail  = m.prop(url + data.src);
+    this.thumbnail  = m.prop(data.src);
     this.altTitle   = m.prop(data.altTitle);
     this.title      = m.prop(data.title);
     this.mp4        = m.prop(data.mp4);
@@ -17,7 +15,7 @@
     this.ogg        = m.prop(data.ogg);
     this.flash      = m.prop(data.flash);
     this.duration   = m.prop(data.duration);
-    this.poster     = m.prop(url + data.poster);
+    this.poster     = m.prop(data.poster);
     this.content    = m.prop(data.content);
   };
 
@@ -60,10 +58,33 @@
       return [
         app.vm.videos ? m('ul', [
           app.vm.videos().filter(app.vm.filter).map(function(video) {
-            return m('li', {style: {display: 'block'}, onclick: ctrl.binds.bind(this, video)}, [
-              m('img.thumbnail', {src: video.thumbnail()}),
-              m('h4', video.title()),
-              m('div.duration', video.duration())
+            return m('li', {style: {cursor: 'pointer', display: 'block'}, onclick: ctrl.binds.bind(this, video)}, [
+              m('div', {style: {
+                position: 'relative', display: 'inline-block'
+              }}, [
+                m('img.thumbnail', {src: video.thumbnail()}),
+                m('div.duration', {style: {
+                  backgroundColor: '#000',
+                  bottom: '4px',
+                  color: '#fff',
+                  display: 'inline-block',
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  height: '14px',
+                  lineHeight: '14px',
+                  marginRight: 0,
+                  marginTop: 0,
+                  opacity: .75,
+                  padding: '0 4px',
+                  position: 'absolute',
+                  right: '2px',
+                  verticalAlign: 'top',
+                  zoom: 1
+                }}, video.duration())
+              ]),
+              m('h4', {style: {
+                marginTop: 0
+              }}, video.title()),
             ]);
           })
         ]) : ''
