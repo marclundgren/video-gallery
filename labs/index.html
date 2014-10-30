@@ -3,17 +3,38 @@
 <head>
   <meta charset="utf-8">
   <meta name="description" content="">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Video Gallery</title>
+
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 </head>
 <body>
-  <div class="labs">
+  <div class="link">
     <a href="..">..</a>
   </div>
 
-  <div id="app"></div>
+  <div class="container-fluid">
+    <div id="app"></div>
+  </div>
+
+  <!-- Fast Click -->
+  <script type='application/javascript' src="//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.3/fastclick.min.js"></script>
+  <script>
+  window.addEventListener('load', function() {
+      FastClick.attach(document.body);
+  }, false);
+  </script>
 
   <script src="//cdnjs.cloudflare.com/ajax/libs/mithril/0.1.22/mithril.js"></script>
+  <script src="//cdn.jsdelivr.net/velocity/1.0.0/velocity.min.js"></script>
+
   <script src="app.js"></script>
+
+  <script>
+  window.onChange = function(e) {
+    console.log('onChange!', e);
+  }
+  </script>
 </body>
 </html>
