@@ -279,6 +279,13 @@
     this.videoList = new app.videoList();
 
     this.videos = m.request({method: 'GET', url: '../data.json', type: app.Video});
+    // this.jsonp = m.request({
+    //   method: 'GET',
+    //   callbackKey: 'callback',
+    //   url: '../p-data.json',
+    //   background: true,
+    //   dataType: 'jsonp'
+    // });
 
     // todo, get a list of URLs for pagination
     // this.urls   = m.request({method: 'GET', url: '../urls.json'});
