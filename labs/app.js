@@ -10,6 +10,8 @@
 
   app.autoplay = false;
   app.title = 'FIDM Video Gallery - now supporing JSONP!';
+  // app.url = '../videos.jsonp?jsoncallback=processJSON';
+  app.url = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/fidm%20from%20a%20to%20z?cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE';
   app.velocity = Velocity;
   app.videoWidth = 108;
 
@@ -51,7 +53,7 @@
 
         app.velocity(videoEl, {width: '100%'}, {
           complete: function() {
-            element.focus();
+            videoEl.focus();
           }
         });
       }
@@ -62,29 +64,32 @@
 
       return video ? [
         m('div', {
-          tabindex: -1,
           config: function(element) {
             videoPlayer.syncScroll(element);
 
             videoPlayer.fadeIn.apply(this, arguments);
           },
-          style: {display: 'inline-block', width: '100%', maxWidth: '640px'}
+          style: {
+            display: 'inline-block',
+            maxWidth: '640px',
+            width: '100%'
+          }
         }, [
           m('video', {
+            style: {
+              width: '100%', maxWidth: '640px'
+            },
             autoplay: app.autoplay,
             controls: true,
+            onkeydown: function(event) {
+              var keyCode = event.keyCode;
 
-            onkeypress: function(e) {
-              if (e.keyCode !== 9) {
-                // preserve video controls
-
-                // e.preventDefault();
-                e.stopPropagation();
-                // e.stopImmediatePropagation();
+              // down, right arrow
+              if (keyCode === 39 || keyCode === 40 || keyCode === 37 || keyCode === 38) {
+                event.stopPropagation();
               }
             },
-            poster: video.poster(),
-            style: {width: '100%', maxWidth: '640px'}
+            poster: video.poster()
           }, [
             m('source', { src: video.mp4(),  type: 'video/mp4'  }),
             m('source', { src: video.webm(), type: 'video/webm' }),
@@ -137,33 +142,36 @@
   app.videoList = function() {
     var videoList = {};
 
-    videoList.keyUp = function(e) {
-      var keyCode = e.keyCode;
+    videoList.keyUp = function(event) {
+      var keyCode = event.keyCode;
 
       if (keyCode === 39 || keyCode === 40) {
-        e.preventDefault();
+        event.preventDefault();
 
-        e.currentTarget.firstChild.focus();
+        event.currentTarget.firstChild.focus();
       }
     };
 
     videoList.item = {};
-    videoList.item.keyUp = function(e) {
-      var keyCode = e.keyCode;
-
-      e.preventDefault();
-      e.stopPropagation();
+    videoList.item.keyDown = function(event) {
+      var keyCode = event.keyCode;
 
       // down, right arrow
       if (keyCode === 39 || keyCode === 40) {
-        if (e.currentTarget.nextSibling) {
-          e.currentTarget.nextSibling.focus();
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (event.currentTarget.nextSibling) {
+          event.currentTarget.nextSibling.focus();
         }
       }
       // up, left arrow
       else if (keyCode === 37 || keyCode === 38) {
-        if (e.currentTarget.previousSibling) {
-          e.currentTarget.previousSibling.focus();
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (event.currentTarget.previousSibling) {
+          event.currentTarget.previousSibling.focus();
         }
       }
     };
@@ -173,15 +181,34 @@
 
       return [
         data ? m('ul', {
-            style: {padding: 0, display: 'inline-block'}
+            style: {
+              padding: 0,
+              display: 'inline-block'
+            }
           }, [
           data.filter(app.vm.filter).map(function(video, index) {
             var selectedVideo = app.vm.selectedVideo();
 
             if (selectedVideo && (video.title() === selectedVideo.title())) {
               return m('li', {
-                  style: {display: 'block', width: 'auto'},
-                  onkeypress: videoList.item.keyUp,
+                  style: {
+                    display: 'block',
+                    width: 'auto'
+                  },
+                  onkeydown: videoList.item.keyDown,
+                  onkeypress: function(event) {
+                    var keyCode = event.keyCode;
+
+                    // esc
+                    if (keyCode === 27) {
+                      event.preventDefault();
+                      event.stopPropagation();
+
+                      // alert('clear the video');
+
+                      ctrl.binds(null);
+                    }
+                  },
                   tabindex: -1
                 }, [
                 m('hr'),
@@ -190,17 +217,22 @@
             }
 
             return m('li', {
-                style: {cursor: 'pointer', display: 'block', width: 'auto'},
+                style: {
+                  cursor: 'pointer',
+                  display: 'block',
+                  width: 'auto'
+                },
                 tabindex: (index === 0) ? 0 : -1,
-                onkeyup: videoList.item.keyUp,
-                onkeypress: function(e) {
-                  var keyCode = e.keyCode;
-
-                  e.preventDefault();
-                  e.stopPropagation();
+                // onkeyup: videoList.item.keyUp,
+                onkeydown: videoList.item.keyDown,
+                onkeypress: function(event) {
+                  var keyCode = event.keyCode;
 
                   // enter
                   if (keyCode === 13) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
                     ctrl.binds(video);
                   }
                 },
@@ -245,7 +277,7 @@
     this.videoList = new app.videoList();
 
     m.startComputation();
-    this.get('../videos.jsonp?jsoncallback=processJSON').then(function(promisedData) {
+    this.get(app.url).then(function(promisedData) {
       app.vm.videos = m.prop(promisedData.result.videos.map(function(item) {
         return new app.Video(item);
       }));
