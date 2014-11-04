@@ -50,7 +50,9 @@
         videoEl.style.width = app.videoWidth + 'px';
 
         app.velocity(videoEl, {width: '100%'}, {
-          complete: element.focus.bind()
+          complete: function() {
+            element.focus();
+          }
         });
       }
     };
@@ -242,12 +244,13 @@
     this.videoPlayer = new app.videoPlayer();
     this.videoList = new app.videoList();
 
+    m.startComputation();
     this.get('../videos.jsonp?jsoncallback=processJSON').then(function(promisedData) {
-      app.vm.videos = m.prop(promisedData.videos.map(function(item) {
+      app.vm.videos = m.prop(promisedData.result.videos.map(function(item) {
         return new app.Video(item);
       }));
 
-      m.redraw(true); // force
+      m.endComputation();
     });
 
     this.selectedVideo = m.prop();
@@ -277,13 +280,16 @@
         reject(Error('callback key ' + callbackKey + ' already exists'));
       }
       else {
-        global[callbackKey] = resolve.bind();
-
-        m.request({
+        var request = m.request({
+          background: true,
           dataType: 'jsonp',
           method: config.method || 'GET',
           url: url
         });
+
+        global[callbackKey] = function(result) {
+          resolve({result: result, request: request});
+        };
       }
     });
 
