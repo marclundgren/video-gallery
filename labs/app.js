@@ -3,13 +3,13 @@
 
 // todo: stylesheet
 
-(function() {
+(function(global) {
   'use strict';
 
   var app = {};
 
   app.autoplay = false;
-  app.title = 'FIDM Video Gallery';
+  app.title = 'FIDM Video Gallery - now supporing JSONP!';
   app.velocity = Velocity;
   app.videoWidth = 108;
 
@@ -44,31 +44,18 @@
     };
 
     videoPlayer.fadeIn = function(element, isInitialized) {
-      // return;
-
       if (!isInitialized) {
         var videoEl = element.getElementsByTagName('video')[0];
 
         videoEl.style.width = app.videoWidth + 'px';
 
         app.velocity(videoEl, {width: '100%'}, {
-          complete: function(e) {
-            console.log('keyCode: ', e.keyCode);
-            // element.setAttribute('', -1);
-
-            element.focus();
-            // console.log('velocity complete element.focus: ', element.focus);
-
-            // debugger;
-          }
+          complete: element.focus.bind()
         });
       }
     };
 
     videoPlayer.view = function() {
-      console.log('videoPlayer.view...');
-      // debugger;
-
       var video = app.vm.selectedVideo();
 
       return video ? [
@@ -76,7 +63,6 @@
           tabindex: -1,
           config: function(element) {
             videoPlayer.syncScroll(element);
-            // console.log('syncScroll...');
 
             videoPlayer.fadeIn.apply(this, arguments);
           },
@@ -85,19 +71,14 @@
           m('video', {
             autoplay: app.autoplay,
             controls: true,
+
             onkeypress: function(e) {
-              console.log('keyCode: ', e.keyCode);
-              // return;
-              console.log('onkeydown e: ', e);
               if (e.keyCode !== 9) {
                 // preserve video controls
-                console.log('preserve video controls', e.keyCode);
+
                 // e.preventDefault();
                 e.stopPropagation();
                 // e.stopImmediatePropagation();
-              }
-              else {
-                console.log('tab is whitelisted', e.keyCode);
               }
             },
             poster: video.poster(),
@@ -134,17 +115,13 @@
     };
 
     search.view = function(ctrl) {
-      // var data = ctrl.data();
-
       return m('div', [
         m('input', {
           type: 'search',
-          onkeyup: function(e) {
-            console.log('keyCode: ', e.keyCode);
-            // return;
+          onkeyup: function(event) {
             app.vm.selectedVideo(null);
 
-            ctrl.binds(e.currentTarget.value);
+            ctrl.binds(event.currentTarget.value);
           },
           value: app.vm.filterQuery()
         }),
@@ -159,8 +136,6 @@
     var videoList = {};
 
     videoList.keyUp = function(e) {
-      console.log('keyCode: ', e.keyCode);
-      // return;
       var keyCode = e.keyCode;
 
       if (keyCode === 39 || keyCode === 40) {
@@ -172,8 +147,6 @@
 
     videoList.item = {};
     videoList.item.keyUp = function(e) {
-      console.log('keyCode: ', e.keyCode);
-      // return;
       var keyCode = e.keyCode;
 
       e.preventDefault();
@@ -198,15 +171,7 @@
 
       return [
         data ? m('ul', {
-            style: {padding: 0, display: 'inline-block'},
-            // onkeyup: videoList.keyUp
-            // `onkeyup` causes a redraw everytime
-            _onkeyup: function(e) {},
-            // `onkeypress` does nothing here
-            _onkeypress: function(e) {
-              console.log('onkeypress e: ', e);
-
-            }
+            style: {padding: 0, display: 'inline-block'}
           }, [
           data.filter(app.vm.filter).map(function(video, index) {
             var selectedVideo = app.vm.selectedVideo();
@@ -227,7 +192,6 @@
                 tabindex: (index === 0) ? 0 : -1,
                 onkeyup: videoList.item.keyUp,
                 onkeypress: function(e) {
-                  console.log('onkeypress: ', e);
                   var keyCode = e.keyCode;
 
                   e.preventDefault();
@@ -278,22 +242,60 @@
     this.videoPlayer = new app.videoPlayer();
     this.videoList = new app.videoList();
 
-    this.videos = m.request({method: 'GET', url: '../data.json', type: app.Video});
-    // this.jsonp = m.request({
-    //   method: 'GET',
-    //   callbackKey: 'callback',
-    //   url: '../p-data.json',
-    //   background: true,
-    //   dataType: 'jsonp'
-    // });
+    this.get('../videos.jsonp?jsoncallback=processJSON').then(function(promisedData) {
+      app.vm.videos = m.prop(promisedData.videos.map(function(item) {
+        return new app.Video(item);
+      }));
 
-    // todo, get a list of URLs for pagination
-    // this.urls   = m.request({method: 'GET', url: '../urls.json'});
+      m.redraw(true); // force
+    });
 
     this.selectedVideo = m.prop();
     this.filterQuery = m.prop('');
 
     window.app = app; // testing
+  };
+
+  // a derivative of thwang1206's method: http://git.io/pUyaYQ
+  app.vm.getParams = function(url) {
+    var vars = {};
+
+    url.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value){
+        vars[key] = value;
+    });
+    return vars;
+  };
+
+  app.vm.jsonp = function(config) {
+    config = config || {};
+
+    var url = config.url || '';
+    var callbackKey = config.callbackKey || app.vm.getParams(url).jsoncallback || 'callback';
+
+    var promise = new Promise(function(resolve, reject) {
+      if (typeof global[callbackKey] !== 'undefined') {
+        reject(Error('callback key ' + callbackKey + ' already exists'));
+      }
+      else {
+        global[callbackKey] = resolve.bind();
+
+        m.request({
+          dataType: 'jsonp',
+          method: config.method || 'GET',
+          url: url
+        });
+      }
+    });
+
+    promise.then(function() {
+      delete global[callbackKey];
+    });
+
+    return promise;
+  };
+
+  app.vm.get = function(url) {
+    return app.vm.jsonp({ url: url });
   };
 
   app.vm.filter = function(item) {
@@ -316,12 +318,13 @@
 
   // View
   app.view = function() {
-    console.log('app view...');
     var vm = app.vm;
 
-    // debugger;
-
-    return m('div', {style: {maxWidth: '800px'}}, [
+    return m('div', {
+        style: {
+          maxWidth: '800px'
+        }
+      }, [
       m('h1', app.title),
       vm.search.view({data: vm.videos, binds: vm.filterQuery}),
       vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
@@ -333,4 +336,4 @@
 
   // Draw
   m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
-})();
+})(window);
