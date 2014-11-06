@@ -9,17 +9,10 @@
   var app = {};
 
   app.autoplay = false;
-  app.title = 'FIDM Video Gallery';
-  // app.url = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/fidm%20from%20a%20to%20z?jsoncallback=callback&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE';
-
   app.paginateURL = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}';
-
-  // http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}
 
   app.velocity = Velocity;
   app.videoWidth = 108;
-
-  app._OFFSET = 14;
 
   // Model
   app.Video = function(data) {
@@ -43,12 +36,6 @@
       this.video = m.prop();
     };
 
-    videoPlayer.syncScroll = function(element) {
-      if (document.body.scrollTop > element.offsetTop) {
-        document.body.scrollTop = (element.offsetTop - app._OFFSET);
-      }
-    };
-
     videoPlayer.fadeIn = function(element, isInitialized) {
       if (!isInitialized) {
         var videoEl = element.getElementsByTagName('video')[0];
@@ -69,7 +56,6 @@
       return video ? [
         m('div', {
           config: function(element) {
-            videoPlayer.syncScroll(element);
             videoPlayer.fadeIn.apply(this, arguments);
           },
           style: {
@@ -136,7 +122,7 @@
     var videoList = {};
 
     videoList.init = function() {
-      videoList.next.load();
+      videoList.next.fetch();
     };
 
     videoList.keyUp = function(event) {
@@ -179,15 +165,17 @@
 
     videoList.next = {};
 
-    videoList.next.load = function() {
-      var page = app.vm.currentPage();
+    videoList.next.fetch = function() {
+      var vm = app.vm;
+
+      var page = vm.currentPage();
 
       if (!videoList._loading) {
         videoList._loading = true;
 
         m.startComputation();
 
-        var promise = app.vm.get(app.vm.nextPageURL(page));
+        var promise = vm.get(vm.nextPageURL(page));
 
         promise.then(function(promisedData) {
           videoList._loading = false;
@@ -198,8 +186,8 @@
             return new app.Video(item);
           });
 
-          app.vm.videos(app.array_flatten([app.vm.videos(), videos]));
-          app.vm.currentPage(parseInt(result.page, BASE_INT));
+          vm.videos(app.array_flatten([vm.videos(), videos]));
+          vm.currentPage(parseInt(result.page, BASE_INT));
 
           m.endComputation();
         }, function(brokenPromise) {
@@ -214,7 +202,12 @@
 
     videoList.next.view = function(ctrl) {
       return m('li.next', {
-        onclick: videoList.next.load,
+        onclick: function(event) {
+          videoList.next.fetch();
+
+          // event.currentTarget.onclick = null;
+
+        },
         style: {
           cursor: 'pointer',
           display: 'block',
@@ -232,12 +225,10 @@
       return [
         data ? m('ul.videoList', {
             style: {
-              width: '100%',
-              display: 'inline-block',
-              padding: 0
+              textAlign: 'right'
             }
           }, [
-          data.filter(app.vm.filter).map(function(video, index) {
+          data.map(function(video, index) {
             var selectedVideo = app.vm.selectedVideo();
 
             if (selectedVideo && (video.title() === selectedVideo.title())) {
@@ -344,25 +335,17 @@
         return new app.Video(item);
       }));
 
-      // app.vm.nextPage(promisedData.result.nextPage);
-
       m.endComputation();
     });
   };
 
   app.vm.init = function() {
     this.currentPage = m.prop(0);
-
     this.videoPlayer = new app.videoPlayer();
     this.videoList = new app.videoList();
     this.videos = m.prop([]);
-
-    app.vm.nextPage = m.prop('');
-
     this.selectedVideo = m.prop();
     this.filterQuery = m.prop('');
-
-    window.app = app; // testing
   };
 
   // a derivative of thwang1206's method: http://git.io/pUyaYQ
@@ -410,21 +393,6 @@
     return app.vm.jsonp({ url: url });
   };
 
-  app.vm.filter = function(item) {
-    var match;
-
-    var filterQuery = app.vm.filterQuery();
-
-    if (filterQuery) {
-      match = app.vm.search.fuzzy(item.title(), filterQuery);
-    }
-    else {
-      match = true;
-    }
-
-    return match;
-  };
-
   // Controller
   app.controller = function() {};
 
@@ -432,20 +400,14 @@
   app.view = function() {
     var vm = app.vm;
 
-    return m('div', {
-        style: {
-          textAlign: 'right',
-          maxWidth: '800px'
-        }
-      }, [
-      m('h1', {style: {textAlign: 'center'}}, app.title),
-      // vm.search.view({data: vm.videos, binds: vm.filterQuery}),
-      vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
-    ]);
+    return vm.videoList.view({data: vm.videos, binds: vm.selectedVideo});
   };
 
   // Init
   app.vm.init();
+
+  // Runtime Developing
+  window.app = app;
 
   // Draw
   m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
