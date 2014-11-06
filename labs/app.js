@@ -23,9 +23,7 @@
 
   // Model
   app.Video = function(data) {
-    var url = '';
-
-    this.thumbnail  = m.prop(url + data.src);
+    this.thumbnail  = m.prop(data.src);
     this.title      = m.prop(data.title);
     this.mp4        = m.prop(data.mp4);
     this.webm       = m.prop(data.webm);
@@ -100,8 +98,8 @@
             m('source', { src: video.webm(), type: 'video/webm' }),
             m('source', { src: video.ogg(),  type: 'video/ogg'  })
           ]),
-          m('h3', video.title()),
-          m('div.content', video.content())
+          m('h3', app.strip(video.title())),
+          m('div.content', app.strip(video.content()))
         ])
       ] : m('');
     };
@@ -109,9 +107,15 @@
     return videoPlayer;
   };
 
+  app.strip = function(html) {
+    // http://stackoverflow.com/a/822486
+    var tmp = document.createElement('DIV');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   app.sub = function(str, obj) {
     var keys = Object.keys(obj);
-
 
     keys.map(function(key) {
       var re = new RegExp('{' + key + '}', 'gm');
@@ -120,7 +124,7 @@
     });
 
     return str;
-  }
+  };
 
   app.array_flatten = function(arrays) {
     return [].concat.apply([], arrays);
@@ -132,7 +136,6 @@
     var videoList = {};
 
     videoList.init = function() {
-      // videoList.next.load(1);
       videoList.next.load();
     };
 
@@ -294,7 +297,6 @@
                     marginBottom: 0 // bootstrap :/
                   },
                   src: video.thumbnail(),
-                  // src: video.poster(),
                   width: app.videoWidth
                 }),
                 m('div.duration', {style: {
@@ -314,7 +316,7 @@
                   marginTop: 0,
                   textAlign: 'left'
                 }
-            }, video.title())
+            }, app.strip(video.title()))
             ]);
           }),
           videoList.next.view()
