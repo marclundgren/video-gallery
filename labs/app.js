@@ -9,9 +9,13 @@
   var app = {};
 
   app.autoplay = false;
-  app.title = 'FIDM Video Gallery - now supporing JSONP!';
-  // app.url = '../videos.jsonp?jsoncallback=processJSON';
-  app.url = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/fidm%20from%20a%20to%20z?cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE';
+  app.title = 'FIDM Video Gallery';
+  // app.url = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/fidm%20from%20a%20to%20z?jsoncallback=callback&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE';
+
+  app.paginateURL = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}';
+
+  // http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}
+
   app.velocity = Velocity;
   app.videoWidth = 108;
 
@@ -19,7 +23,9 @@
 
   // Model
   app.Video = function(data) {
-    this.thumbnail  = m.prop(data.src);
+    var url = '';
+
+    this.thumbnail  = m.prop(url + data.src);
     this.title      = m.prop(data.title);
     this.mp4        = m.prop(data.mp4);
     this.webm       = m.prop(data.webm);
@@ -66,7 +72,6 @@
         m('div', {
           config: function(element) {
             videoPlayer.syncScroll(element);
-
             videoPlayer.fadeIn.apply(this, arguments);
           },
           style: {
@@ -76,11 +81,11 @@
           }
         }, [
           m('video', {
+            autoplay: app.autoplay,
+            controls: true,
             style: {
               width: '100%', maxWidth: '640px'
             },
-            autoplay: app.autoplay,
-            controls: true,
             onkeydown: function(event) {
               var keyCode = event.keyCode;
 
@@ -104,43 +109,32 @@
     return videoPlayer;
   };
 
-  app.search = function() {
-    var search = {};
+  app.sub = function(str, obj) {
+    var keys = Object.keys(obj);
 
-    search.fuzzy = function(str, match) {
-      // todo : memoize/cache
 
-      // normalize
-      str   = str.toLowerCase();
-      match = match.toLowerCase();
+    keys.map(function(key) {
+      var re = new RegExp('{' + key + '}', 'gm');
 
-      var pattern = match.split('').reduce(function(a,b) {
-        return (a + '.*' + b);
-      });
+      str = str.replace(re, obj[key]);
+    });
 
-      return (new RegExp(pattern)).test(str);
-    };
+    return str;
+  }
 
-    search.view = function(ctrl) {
-      return m('div', [
-        m('input', {
-          type: 'search',
-          onkeyup: function(event) {
-            app.vm.selectedVideo(null);
-
-            ctrl.binds(event.currentTarget.value);
-          },
-          value: app.vm.filterQuery()
-        }),
-        m('i.fa.fa-search')
-      ]);
-    };
-
-    return search;
+  app.array_flatten = function(arrays) {
+    return [].concat.apply([], arrays);
   };
 
   app.videoList = function() {
+    var BASE_INT = 10;
+
     var videoList = {};
+
+    videoList.init = function() {
+      // videoList.next.load(1);
+      videoList.next.load();
+    };
 
     videoList.keyUp = function(event) {
       var keyCode = event.keyCode;
@@ -153,37 +147,91 @@
     };
 
     videoList.item = {};
+
     videoList.item.keyDown = function(event) {
       var keyCode = event.keyCode;
 
-      // down, right arrow
-      if (keyCode === 39 || keyCode === 40) {
+      if (keyCode === 39 || keyCode === 40 || keyCode === 37 || keyCode === 38) {
         event.preventDefault();
         event.stopPropagation();
 
-        if (event.currentTarget.nextSibling) {
-          event.currentTarget.nextSibling.focus();
+        // down, right arrow
+        if (keyCode === 39 || keyCode === 40) {
+          if (event.currentTarget.nextSibling) {
+            event.currentTarget.nextSibling.focus();
+          }
+        }
+        // up, left arrow
+        else if (keyCode === 37 || keyCode === 38) {
+          if (event.currentTarget.previousSibling) {
+            event.currentTarget.previousSibling.focus();
+          }
         }
       }
-      // up, left arrow
-      else if (keyCode === 37 || keyCode === 38) {
-        event.preventDefault();
-        event.stopPropagation();
+    };
 
-        if (event.currentTarget.previousSibling) {
-          event.currentTarget.previousSibling.focus();
-        }
+    app.vm.nextPageURL = function(page) {
+      return app.sub(app.paginateURL, {page: page + 1});
+    };
+
+    videoList.next = {};
+
+    videoList.next.load = function() {
+      var page = app.vm.currentPage();
+
+      if (!videoList._loading) {
+        videoList._loading = true;
+
+        m.startComputation();
+
+        var promise = app.vm.get(app.vm.nextPageURL(page));
+
+        promise.then(function(promisedData) {
+          videoList._loading = false;
+
+          var result = promisedData.result;
+
+          var videos = result.videos.map(function(item) {
+            return new app.Video(item);
+          });
+
+          app.vm.videos(app.array_flatten([app.vm.videos(), videos]));
+          app.vm.currentPage(parseInt(result.page, BASE_INT));
+
+          m.endComputation();
+        }, function(brokenPromise) {
+          // Error(brokenPromise);
+
+          videoList._loading = false;
+        });
+
+        return promise;
       }
+    };
+
+    videoList.next.view = function(ctrl) {
+      return m('li.next', {
+        onclick: videoList.next.load,
+        style: {
+          cursor: 'pointer',
+          display: 'block',
+          width: 'auto'
+        }
+      }, [
+        m('hr'),
+        m('span', 'load more')
+      ]);
     };
 
     videoList.view = function(ctrl) {
       var data = ctrl.data();
 
       return [
-        data ? m('ul', {
+        data ? m('ul.videoList', {
             style: {
-              padding: 0,
-              display: 'inline-block'
+              width: '100%',
+              display: 'inline-block',
+              padding: 0
             }
           }, [
           data.filter(app.vm.filter).map(function(video, index) {
@@ -197,14 +245,11 @@
                   },
                   onkeydown: videoList.item.keyDown,
                   onkeypress: function(event) {
-                    var keyCode = event.keyCode;
+                    if (event.keyCode === 27) {
+                      // esc, clear the video
 
-                    // esc
-                    if (keyCode === 27) {
                       event.preventDefault();
                       event.stopPropagation();
-
-                      // alert('clear the video');
 
                       ctrl.binds(null);
                     }
@@ -223,7 +268,6 @@
                   width: 'auto'
                 },
                 tabindex: (index === 0) ? 0 : -1,
-                // onkeyup: videoList.item.keyUp,
                 onkeydown: videoList.item.keyDown,
                 onkeypress: function(event) {
                   var keyCode = event.keyCode;
@@ -244,7 +288,15 @@
               m('div', {style: {
                 position: 'relative', display: 'inline-block'
               }}, [
-                m('img.thumbnail', {src: video.thumbnail(), width: app.videoWidth}),
+                m('img.thumbnail', {
+                  style: {
+                    textAlign: 'right',
+                    marginBottom: 0 // bootstrap :/
+                  },
+                  src: video.thumbnail(),
+                  // src: video.poster(),
+                  width: app.videoWidth
+                }),
                 m('div.duration', {style: {
                   backgroundColor: '#000',
                   bottom: '6px',
@@ -257,33 +309,53 @@
                   right: '2px'
                 }}, video.duration())
               ]),
-              m('h5', {style: {
-                marginTop: 0
-              }}, video.title())
+              m('h5', {
+                style: {
+                  marginTop: 0,
+                  textAlign: 'left'
+                }
+            }, video.title())
             ]);
-          })
+          }),
+          videoList.next.view()
         ]) : m('div', 'I could not find any videos.')
       ];
     };
+
+    videoList.init();
+
     return videoList;
   };
 
   // View Model
   app.vm = {};
 
-  app.vm.init = function() {
-    this.search = new app.search();
-    this.videoPlayer = new app.videoPlayer();
-    this.videoList = new app.videoList();
+  app.vm.loadInitialVideos = function() {
+    app.vm.loadVideos(this.currentPage());
+  };
 
+  app.vm.loadVideos = function(url) {
     m.startComputation();
-    this.get(app.url).then(function(promisedData) {
-      app.vm.videos = m.prop(promisedData.result.videos.map(function(item) {
+
+    this.get(url).then(function(promisedData) {
+      app.vm.videos(promisedData.result.videos.map(function(item) {
         return new app.Video(item);
       }));
 
+      // app.vm.nextPage(promisedData.result.nextPage);
+
       m.endComputation();
     });
+  };
+
+  app.vm.init = function() {
+    this.currentPage = m.prop(0);
+
+    this.videoPlayer = new app.videoPlayer();
+    this.videoList = new app.videoList();
+    this.videos = m.prop([]);
+
+    app.vm.nextPage = m.prop('');
 
     this.selectedVideo = m.prop();
     this.filterQuery = m.prop('');
@@ -360,11 +432,12 @@
 
     return m('div', {
         style: {
+          textAlign: 'right',
           maxWidth: '800px'
         }
       }, [
-      m('h1', app.title),
-      vm.search.view({data: vm.videos, binds: vm.filterQuery}),
+      m('h1', {style: {textAlign: 'center'}}, app.title),
+      // vm.search.view({data: vm.videos, binds: vm.filterQuery}),
       vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
     ]);
   };
