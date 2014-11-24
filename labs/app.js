@@ -323,6 +323,16 @@
   // View Model
   app.vm = {};
 
+  app.vm.init = function() {
+
+    this.currentPage = m.prop(0);
+    this.videoPlayer = new app.videoPlayer();
+    // this.videoList = new app.videoList();
+    this.videos = m.prop([]);
+    this.selectedVideo = m.prop();
+    this.filterQuery = m.prop('');
+  };
+
   app.vm.loadInitialVideos = function() {
     app.vm.loadVideos(this.currentPage());
   };
@@ -339,15 +349,6 @@
     });
   };
 
-  app.vm.init = function() {
-    this.currentPage = m.prop(0);
-    this.videoPlayer = new app.videoPlayer();
-    this.videoList = new app.videoList();
-    this.videos = m.prop([]);
-    this.selectedVideo = m.prop();
-    this.filterQuery = m.prop('');
-  };
-
   // a derivative of thwang1206's method: http://git.io/pUyaYQ
   app.vm.getParams = function(url) {
     var vars = {};
@@ -358,6 +359,7 @@
     return vars;
   };
 
+  // TODO apply this: https://github.com/lhorie/mithril.js/issues/329#issuecomment-61752753
   app.vm.jsonp = function(config) {
     config = config || {};
 
@@ -400,7 +402,8 @@
   app.view = function() {
     var vm = app.vm;
 
-    return vm.videoList.view({data: vm.videos, binds: vm.selectedVideo});
+    return m('test')
+    // return vm.videoList.view({data: vm.videos, binds: vm.selectedVideo});
   };
 
   // Init
@@ -408,6 +411,21 @@
 
   // Runtime Developing
   window.app = app;
+
+  // app._url = app.vm.nextPageURL(0);
+  // console.log('app._url: ', app._url);
+
+  m.request({
+    callbackKey: 'jsoncallback',
+    // callbackName: 'callback',
+    dataType: 'jsonp',
+    method: 'GET',
+    url: 'http://api.flickr.com/services/feeds/photos_public.gne?jsoncallback=processJSON&tags=monkey&tagmode=any&format=json',
+    _url: 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?jsoncallback=callbackWCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe=1'
+  }).then(function(d) {
+    console.log('d: ', d);
+
+  });
 
   // Draw
   m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
