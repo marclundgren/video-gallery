@@ -11,6 +11,7 @@
   app.autoplay = false;
   app.paginateURL = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}';
 
+  app.title = 'FIDM Video Gallery';
   app.velocity = Velocity;
   app.videoWidth = 108;
 
@@ -223,7 +224,7 @@
       var data = ctrl.data();
 
       return [
-        data ? m('ul.videoList', {
+        data ? m('div.container.videoList', {
             style: {
               textAlign: 'right'
             }
@@ -232,7 +233,7 @@
             var selectedVideo = app.vm.selectedVideo();
 
             if (selectedVideo && (video.title() === selectedVideo.title())) {
-              return m('li', {
+              return m('div.row', {
                   style: {
                     display: 'block',
                     width: 'auto'
@@ -255,7 +256,7 @@
               ]);
             }
 
-            return m('li', {
+            return m('div.row', {
                 style: {
                   cursor: 'pointer',
                   display: 'block',
@@ -279,7 +280,16 @@
                 }
               }, [
               m('hr'),
-              m('div', {style: {
+              m('div.col-md-3.col-md-push-9',
+                {
+                  style: {
+                    marginTop: 0,
+                    textAlign: 'left'
+                  }
+                },
+                app.strip(video.title())
+              ),
+              m('div.col-md-9.col-md-push-3', {style: {
                 position: 'relative', display: 'inline-block'
               }}, [
                 m('img.thumbnail', {
@@ -299,15 +309,9 @@
                   opacity: 0.75,
                   padding: '0px 4px',
                   position: 'absolute',
-                  right: '2px'
+                  left: '21px'
                 }}, video.duration())
-              ]),
-              m('h5', {
-                style: {
-                  marginTop: 0,
-                  textAlign: 'left'
-                }
-            }, app.strip(video.title()))
+              ])
             ]);
           }),
           videoList.next.view()
@@ -390,7 +394,7 @@
   };
 
   app.vm.get = function(url) {
-    return app.vm.jsonp({ url: url });
+    return app.vm.jsonp({ callbackKey: 'processJSON', url: url });
   };
 
   // Controller
@@ -400,7 +404,10 @@
   app.view = function() {
     var vm = app.vm;
 
-    return vm.videoList.view({data: vm.videos, binds: vm.selectedVideo});
+    return m('div',
+      m('h1', app.title),
+      vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
+    )
   };
 
   // Init
