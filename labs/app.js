@@ -1,24 +1,90 @@
 /* global m */
 /* global Velocity */
+/* jshint devel:true, strict:false */
 
-// todo: stylesheet
+// todo: move styles to stylesheet
 
 (function(global) {
-  'use strict';
+
+  /*
+
+  //a sample module
+  var video = {
+    controller: function() {
+      this.id = m.route.param('videoID');
+      console.log('video id: ', this.id);
+    },
+
+    view: function(controller) {
+      console.log('controller: ', controller);
+      return m('div', [
+        m('div', {
+          style: {
+            padding: '1em',
+            fontSize: '2em'
+          }
+        }, controller.id),
+        videoList.view(controller)
+      ]);
+    }
+  };
+
+  var videoList = {
+    controller: function() {
+      this.id = 'list of videos...';
+    },
+    view: function(controller) {
+      console.log('controller: ', controller);
+      console.log('videolist id: ', this.id);
+      return m('div.list', [
+        m('div', {
+          style: {display: 'block', cursor: 'pointer'},
+          onclick: m.route.bind(m.route, '/video/johndoe')
+        }, 'johndoe'),
+        m('div', {
+          style: {display: 'block', cursor: 'pointer'},
+          onclick: m.route.bind(m.route, '/video/foo')
+        }, 'foo'),
+        m('div', {
+          style: {display: 'block', cursor: 'pointer'},
+          onclick: m.route.bind(m.route, '/video/bar')
+        }, 'bar')
+      ]);
+    }
+  };
+
+  //setup routes to start w/ the `#` symbol
+  m.route.mode = 'search';
+
+  //define a route
+  var appEl = document.getElementById('app');
+
+  m.route(appEl, '/videos/', {
+      '/videos': videoList,
+      '/video/:videoID...': video
+  });
+
+  return;
+  */
 
   var app = {};
 
-  app.autoplay = false;
-  app.paginateURL = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}';
-
-  app.title = 'FIDM Video Gallery';
   app.velocity = Velocity;
-  app.videoWidth = 108;
 
   // Model
+
+  app.guid = function() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+    });
+  };
+
   app.Video = function(data) {
     this.thumbnail  = m.prop(data.src);
     this.title      = m.prop(data.title);
+    this.id         = app.guid();
+    // console.log('this.id: ', this.id);
     this.mp4        = m.prop(data.mp4);
     this.webm       = m.prop(data.webm);
     this.ogg        = m.prop(data.ogg);
@@ -31,17 +97,36 @@
   app.videoPlayer = function() {
     var videoPlayer = {};
 
+    videoPlayer.controller = function() {
+      this.id = m.route.param('videoID');
+      console.log('video id: ', this.id);
+
+      var video = app.vm.getVideoById(this.id);
+      console.log('video: ', video);
+
+      if (this.id &&  !video) {
+        // debugger;
+
+        // m.stop
+
+        videoList.init
+
+      }
+    };
+
     videoPlayer.vm = {};
 
     videoPlayer.vm.init = function() {
       this.video = m.prop();
     };
 
+    videoPlayer.width = 108;
+
     videoPlayer.fadeIn = function(element, isInitialized) {
       if (!isInitialized) {
         var videoEl = element.getElementsByTagName('video')[0];
 
-        videoEl.style.width = app.videoWidth + 'px';
+        videoEl.style.width = videoPlayer.width + 'px';
 
         app.velocity(videoEl, {width: '100%'}, {
           complete: function() {
@@ -51,12 +136,17 @@
       }
     };
 
-    videoPlayer.view = function() {
-      var video = app.vm.selectedVideo();
+    videoPlayer.autoplay = false;
+
+    videoPlayer.view = function(controller) {
+      var vm = app.vm;
+
+      // var video = vm.selectedVideo();
+      var video = app.vm.getVideoById(controller.id);
 
       return video ? [
         m('div', {
-          config: function(element) {
+          config: function() {
             videoPlayer.fadeIn.apply(this, arguments);
           },
           style: {
@@ -66,7 +156,7 @@
           }
         }, [
           m('video', {
-            autoplay: app.autoplay,
+            autoplay: videoPlayer.autoplay,
             controls: true,
             style: {
               width: '100%', maxWidth: '640px'
@@ -85,7 +175,11 @@
             m('source', { src: video.webm(), type: 'video/webm' }),
             m('source', { src: video.ogg(),  type: 'video/ogg'  })
           ]),
-          m('h3', app.strip(video.title())),
+          m('h3', {
+            style: {
+              margin: '20px'
+            }
+          }, app.strip(video.title())),
           m('div.content', app.strip(video.content()))
         ])
       ] : m('');
@@ -122,8 +216,19 @@
 
     var videoList = {};
 
+    videoList.controller = function() {
+      this.data = app.vm.videos;
+    };
+
     videoList.init = function() {
-      videoList.next.fetch();
+      return;
+
+      console.log('videoList init');
+      // m.sto
+      m.startComputation();
+      videoList.next.fetch().then(function() {
+        m.endComputation();
+      });
     };
 
     videoList.keyUp = function(event) {
@@ -160,23 +265,97 @@
       }
     };
 
-    app.vm.nextPageURL = function(page) {
-      return app.sub(app.paginateURL, {page: page + 1});
+    videoList.next = {};
+
+    videoList.next.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
+
+    videoList.next.getParams = function(url) {
+      var vars = {};
+
+      url.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value){
+          vars[key] = value;
+      });
+      return vars;
     };
 
-    videoList.next = {};
+    videoList.next.jsonp = function(config) {
+      config = config || {};
+
+      var url = config.url;
+
+      var callbackKey = config.callbackKey || this.getParams(url).jsoncallback || 'callback';
+
+      var promise = new Promise(function(resolve, reject) {
+        if (!url) {
+          reject('no url');
+        }
+        else if (typeof global[callbackKey] !== 'undefined') {
+          reject(Error('callback key ' + callbackKey + ' already exists'));
+        }
+        else {
+          var request = m.request({
+            background: true,
+            dataType: 'jsonp',
+            method: config.method || 'GET',
+            url: url
+          });
+
+          global[callbackKey] = function(result) {
+            resolve({result: result, request: request});
+          };
+        }
+      });
+
+      promise.then(function() {
+        delete global[callbackKey];
+      });
+
+      return promise;
+    };
+
+    videoList.next.get = function(url) {
+      return this.jsonp({ callbackKey: 'processJSON', url: url });
+    };
+
+    videoList.next.getElementByTitle = function(element, title) {
+      var attributeValue = new RegExp('(^|\\s)' + title + '(\\s|$)', 'i');
+
+      if (attributeValue) {
+        var anchorElements = element.getElementsByTagName('a');
+
+        for(var i=0; i < anchorElements.length; i++) {
+          var el = anchorElements[i];
+
+          var attribute = el.getAttribute && el.getAttribute('title');
+
+          var isString = ((typeof attribute).toLowerCase() === 'string') && (attribute.length > 0);
+
+          var match = isString && attributeValue.test(attribute);
+
+          if (match) {
+            return el;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    videoList.currentPage = m.prop(1);
 
     videoList.next.fetch = function() {
       var vm = app.vm;
-
-      var page = vm.currentPage();
+      var self = this;
 
       if (!videoList._loading) {
         videoList._loading = true;
 
-        m.startComputation();
+        // var url = vm.url();
+        var url = this.url();
 
-        var promise = vm.get(vm.nextPageURL(page));
+        var promise = this.get(url);
+
+        // m.startComputation();
 
         promise.then(function(promisedData) {
           videoList._loading = false;
@@ -188,11 +367,43 @@
           });
 
           vm.videos(app.array_flatten([vm.videos(), videos]));
-          vm.currentPage(parseInt(result.page, BASE_INT));
 
-          m.endComputation();
+          var page = parseInt(result.currentPage, BASE_INT);
+
+          // vm.currentPage(page);
+          videoList.currentPage(page);
+
+          var element = document.createElement('div');
+
+          element.innerHTML = result.allPages;
+
+          var nextPage = vm.currentPage() + 1;
+
+          var title = app.sub('Link to page {page}', {
+            page: nextPage
+          });
+
+          var linkPage = videoList.next.getElementByTitle(element, title);
+
+          var url;
+
+          if (linkPage) {
+            // I don't know how to make the navigation element in WCM reference the fidm domain. So I have no choice but to do it here.
+
+            url = '//fidm.edu' + linkPage.getAttribute('href');
+          }
+          else {
+            url = null;
+          }
+
+          // vm.url(url);
+          self.url(url);
+
+          vm.currentPage(nextPage);
+
+          // m.endComputation();
         }, function(brokenPromise) {
-          // Error(brokenPromise);
+          app.error = new Error(brokenPromise);
 
           videoList._loading = false;
         });
@@ -201,13 +412,10 @@
       }
     };
 
-    videoList.next.view = function(ctrl) {
+    videoList.next.view = function() {
       return m('li.next', {
-        onclick: function(event) {
+        onclick: function() {
           videoList.next.fetch();
-
-          // event.currentTarget.onclick = null;
-
         },
         style: {
           cursor: 'pointer',
@@ -215,7 +423,6 @@
           width: 'auto'
         }
       }, [
-        m('hr'),
         m('span', 'load more')
       ]);
     };
@@ -224,16 +431,17 @@
       var data = ctrl.data();
 
       return [
-        data ? m('div.container.videoList', {
+        data ? m('div.videoList', {
             style: {
               textAlign: 'right'
             }
           }, [
           data.map(function(video, index) {
-            var selectedVideo = app.vm.selectedVideo();
+            // var selectedVideo = app.vm.selectedVideo();
+            var selectedVideo = false;
 
-            if (selectedVideo && (video.title() === selectedVideo.title())) {
-              return m('div.row', {
+            if (false && selectedVideo && (video.title() === selectedVideo.title())) {
+              return m('section.card', {
                   style: {
                     display: 'block',
                     width: 'auto'
@@ -246,21 +454,20 @@
                       event.preventDefault();
                       event.stopPropagation();
 
-                      ctrl.binds(null);
+                      // ctrl.binds(null);
                     }
                   },
                   tabindex: -1
                 }, [
-                m('hr'),
                 app.vm.videoPlayer.view()
               ]);
             }
 
-            return m('div.row', {
+            // video.id3
+
+            return m('section.card', {
                 style: {
-                  cursor: 'pointer',
-                  display: 'block',
-                  width: 'auto'
+                  cursor: 'pointer'
                 },
                 tabindex: (index === 0) ? 0 : -1,
                 onkeydown: videoList.item.keyDown,
@@ -272,15 +479,16 @@
                     event.preventDefault();
                     event.stopPropagation();
 
-                    ctrl.binds(video);
+                    // ctrl.binds(video);
                   }
                 },
-                onclick: function() {
-                  ctrl.binds(video);
+                onclick: m.route.bind(m.route, '/video/' + video.id),
+                _onclick: function() {
+                  // ctrl.binds(video);
+
                 }
               }, [
-              m('hr'),
-              m('div.col-md-3.col-md-push-9',
+              m('h1',
                 {
                   style: {
                     marginTop: 0,
@@ -289,11 +497,13 @@
                 },
                 app.strip(video.title())
               ),
-              m('div.col-md-9.col-md-push-3', {style: {
-                position: 'relative', display: 'inline-block'
+              m('div', {style: {
+                position: 'relative'
               }}, [
                 m('img.thumbnail', {
                   style: {
+                    height: 'auto',
+                    width: 'auto',
                     textAlign: 'right',
                     marginBottom: 0 // bootstrap :/
                   },
@@ -327,78 +537,90 @@
   // View Model
   app.vm = {};
 
-  app.vm.loadInitialVideos = function() {
-    app.vm.loadVideos(this.currentPage());
-  };
+  app.vm.currentPage = m.prop(1);
+  app.vm.videos = m.prop([]);
 
-  app.vm.loadVideos = function(url) {
-    m.startComputation();
 
-    this.get(url).then(function(promisedData) {
-      app.vm.videos(promisedData.result.videos.map(function(item) {
-        return new app.Video(item);
-      }));
+  app.vm.getVideoById = function(id) {
+    var videos = app.vm.videos();
 
-      m.endComputation();
-    });
+    for (var index = 0; index < videos.length; index++) {
+      var item = videos[index];
+
+      if (item.id === id) {
+        return item;
+      }
+    }
+
+    return null;
   };
 
   app.vm.init = function() {
-    this.currentPage = m.prop(0);
-    this.videoPlayer = new app.videoPlayer();
-    this.videoList = new app.videoList();
+    this.currentPage = m.prop(1);
     this.videos = m.prop([]);
-    this.selectedVideo = m.prop();
-    this.filterQuery = m.prop('');
+
+    // this.videoPlayer = new app.videoPlayer();
+    // this.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
+    // this.videoList = new app.videoList();
+    // this.selectedVideo = m.prop();
+    // this.filterQuery = m.prop('');
+
+    //define a route
+
+    // m.route(appEl, '/videoList', {
+    //   '/videoList': this.videoList,
+    //   '/videoPlayer/:videoID...': this.videoPlayer
+    // });
   };
 
-  // a derivative of thwang1206's method: http://git.io/pUyaYQ
-  app.vm.getParams = function(url) {
-    var vars = {};
+  var appEl = document.getElementById('app');
+  //setup routes to start w/ the `#` symbol
+  m.route.mode = 'search';
 
-    url.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value){
-        vars[key] = value;
-    });
-    return vars;
+  //a sample module
+  // var videos = {
+  //   controller: function() {
+  //     this.id = m.route.param('videoID');
+  //   },
+  //   view: function(controller) {
+  //     return m('div', controller.id);
+  //   }
+  // };
+
+  //setup routes to start w/ the `#` symbol
+  m.route.mode = 'search';
+
+  //define a route
+  var videos = {
+    controller: function() {
+    },
+    view: function() {
+      return m('a[href="/video/blahblah"]', {config: m.route}, 'go to page 2');
+    }
   };
 
-  app.vm.jsonp = function(config) {
-    config = config || {};
+  // var video = {
+  //   controller: function() {
+  //     this.id = m.route.param('videoID');
+  //     console.log('this.id: ', this.id);
+  //   },
+  //   view: function(controller) {
+  //     console.log('controller: ', controller);
 
-    var url = config.url || '';
-    var callbackKey = config.callbackKey || app.vm.getParams(url).jsoncallback || 'callback';
+  //     return m('div', [
+  //       m('div', controller.id),
+  //       m('a[href="/videos"]', {config: m.route}, 'go to page 1'),
+  //       videos.view()
+  //     ]);
+  //   }
+  // };
 
-    var promise = new Promise(function(resolve, reject) {
-      if (typeof global[callbackKey] !== 'undefined') {
-        reject(Error('callback key ' + callbackKey + ' already exists'));
-      }
-      else {
-        var request = m.request({
-          background: true,
-          dataType: 'jsonp',
-          method: config.method || 'GET',
-          url: url
-        });
+  // var videoList = new app.videoList();
 
-        global[callbackKey] = function(result) {
-          resolve({result: result, request: request});
-        };
-      }
-    });
-
-    promise.then(function() {
-      delete global[callbackKey];
-    });
-
-    return promise;
-  };
-
-  app.vm.get = function(url) {
-    return app.vm.jsonp({ callbackKey: 'processJSON', url: url });
-  };
-
-  // Controller
-  app.controller = function() {};
+  // m.route(appEl, '/videos', {
+  //   '/videos': videoList,
+  //   '/video/:videoID...': video
+  // });
 
   // View
   app.view = function() {
@@ -406,16 +628,34 @@
 
     return m('div',
       m('h1', app.title),
-      vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
-    )
+      vm.videoList.view()
+    );
+  };
+
+  app.controller= function() {
+    this.data = app.vm.videos;
   };
 
   // Init
-  app.vm.init();
+  // app.vm.init();
 
   // Runtime Developing
   window.app = app;
 
   // Draw
-  m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
+  m.module(document.getElementById('videoList'), new app.videoList());
+
+  var videoPlayerEl = document.getElementById('videoPlayer');
+  console.log('videoPlayerEl: ', videoPlayerEl);
+
+  // infinite loop
+  m.route(
+    videoPlayerEl,
+    '/videos/', {
+      // '/videos': new app.videoList(),
+      '/video/:videoID': new app.videoPlayer()
+    }
+  );
+
+  // m.route.param('videoID', '7f4adfbe-6329-417b-952b-e2fcc68339cf')
 })(window);

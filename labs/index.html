@@ -6,34 +6,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Video Gallery</title>
 
-  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
-  <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../css/font-awesome.min.css">
+  <link rel="stylesheet" href="../css/bootstrap.min.css">
 
   <style>
     #app .videoList {
       -webkit-overflow-scrolling: touch;
     }
   </style>
+
+  <link rel="stylesheet" href="../reset.css">
+  <link rel="stylesheet" href="../style.css">
 </head>
 <body>
+  <main>
+    <div id="app" role="main"></div>
+    <div id="videoPlayer"></div>
+    <div id="videoList"></div>
+  </main>
+
   <div class="container">
     <div class="link">
       <a href="..">..</a>
     </div>
-
-    <div id="app" role="main"></div>
   </div>
 
   <!-- Fast Click -->
-  <script type='application/javascript' src="//cdnjs.cloudflare.com/ajax/libs/fastclick/1.0.3/fastclick.min.js"></script>
+  <script type='application/javascript' src="../vendor/fastclick.min.js"></script>
   <script>
   window.addEventListener('load', function() {
+      /* global FastClick */
+      /* jshint strict:false */
       FastClick.attach(document.body);
   }, false);
   </script>
 
-  <script src="//cdnjs.cloudflare.com/ajax/libs/mithril/0.1.22/mithril.js"></script>
-  <script src="//cdn.jsdelivr.net/velocity/1.0.0/velocity.min.js"></script>
+  <script src="../vendor/mithril.js"></script>
+  <script src="../vendor/velocity.min.js"></script>
 
   <script src="app.js"></script>
 </body>
