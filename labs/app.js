@@ -4,7 +4,7 @@
 
 // todo: move styles to stylesheet
 
-(function(global) {
+(function(WINDOW, doc) {
 
   /*
 
@@ -73,18 +73,22 @@
 
   // Model
 
-  app.guid = function() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-      return v.toString(16);
-    });
-  };
+  app.guid = (function() {
+    function s4() {
+      return Math.floor((1 + Math.random()) * 0x10000)
+                 .toString(16)
+                 .substring(1);
+    }
+    return function() {
+      return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+             s4() + '-' + s4() + s4() + s4();
+    };
+  })();
 
   app.Video = function(data) {
     this.thumbnail  = m.prop(data.src);
     this.title      = m.prop(data.title);
-    this.id         = app.guid();
-    // console.log('this.id: ', this.id);
+    this.id         = m.prop(app.guid());
     this.mp4        = m.prop(data.mp4);
     this.webm       = m.prop(data.webm);
     this.ogg        = m.prop(data.ogg);
@@ -99,19 +103,10 @@
 
     videoPlayer.controller = function() {
       this.id = m.route.param('videoID');
-      console.log('video id: ', this.id);
 
       var video = app.vm.getVideoById(this.id);
-      console.log('video: ', video);
+      this.video = video;
 
-      if (this.id &&  !video) {
-        // debugger;
-
-        // m.stop
-
-        videoList.init
-
-      }
     };
 
     videoPlayer.vm = {};
@@ -141,11 +136,10 @@
     videoPlayer.view = function(controller) {
       var vm = app.vm;
 
-      // var video = vm.selectedVideo();
-      var video = app.vm.getVideoById(controller.id);
+      var video = controller.video;
 
       return video ? [
-        m('div', {
+        m('div.videoPlayer', {
           config: function() {
             videoPlayer.fadeIn.apply(this, arguments);
           },
@@ -175,12 +169,19 @@
             m('source', { src: video.webm(), type: 'video/webm' }),
             m('source', { src: video.ogg(),  type: 'video/ogg'  })
           ]),
-          m('h3', {
-            style: {
-              margin: '20px'
-            }
-          }, app.strip(video.title())),
-          m('div.content', app.strip(video.content()))
+          m('section.card', { style: {
+              width: '100%',
+              maxWidth: 'none',
+              margin: '1em 0 2em 0'
+            }}, [
+            m('h1', { style: {
+              fontSize: '36px'
+            }}, app.strip(video.title())),
+            m('div.content', { style: {
+              textAlign: 'left',
+              margin: '1em'
+            }}, app.strip(video.content()))
+          ])
         ])
       ] : m('');
     };
@@ -223,7 +224,6 @@
     videoList.init = function() {
       return;
 
-      console.log('videoList init');
       // m.sto
       m.startComputation();
       videoList.next.fetch().then(function() {
@@ -289,7 +289,7 @@
         if (!url) {
           reject('no url');
         }
-        else if (typeof global[callbackKey] !== 'undefined') {
+        else if (typeof WINDOW[callbackKey] !== 'undefined') {
           reject(Error('callback key ' + callbackKey + ' already exists'));
         }
         else {
@@ -300,14 +300,14 @@
             url: url
           });
 
-          global[callbackKey] = function(result) {
+          WINDOW[callbackKey] = function(result) {
             resolve({result: result, request: request});
           };
         }
       });
 
       promise.then(function() {
-        delete global[callbackKey];
+        delete WINDOW[callbackKey];
       });
 
       return promise;
@@ -413,10 +413,11 @@
     };
 
     videoList.next.view = function() {
-      return m('li.next', {
+      return m('section.next', {
         onclick: function() {
           videoList.next.fetch();
         },
+        tabindex: 0,
         style: {
           cursor: 'pointer',
           display: 'block',
@@ -433,7 +434,7 @@
       return [
         data ? m('div.videoList', {
             style: {
-              textAlign: 'right'
+              textAlign: 'center'
             }
           }, [
           data.map(function(video, index) {
@@ -482,17 +483,16 @@
                     // ctrl.binds(video);
                   }
                 },
-                onclick: m.route.bind(m.route, '/video/' + video.id),
-                _onclick: function() {
-                  // ctrl.binds(video);
-
-                }
+                onclick: m.route.bind(m.route, '/video/' + video.id())
               }, [
-              m('h1',
+              m('h4',
                 {
                   style: {
-                    marginTop: 0,
-                    textAlign: 'left'
+                    marginTop: '0px',
+                    overflow: 'hidden',
+                    textAlign: 'left',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
                   }
                 },
                 app.strip(video.title())
@@ -502,8 +502,10 @@
               }}, [
                 m('img.thumbnail', {
                   style: {
-                    height: 'auto',
-                    width: 'auto',
+                    // height: 'auto',
+                    // width: 'auto',
+                    height: '70px',
+                    width: '118px',
                     textAlign: 'right',
                     marginBottom: 0 // bootstrap :/
                   },
@@ -547,7 +549,7 @@
     for (var index = 0; index < videos.length; index++) {
       var item = videos[index];
 
-      if (item.id === id) {
+      if (item.id() === id) {
         return item;
       }
     }
@@ -573,7 +575,7 @@
     // });
   };
 
-  var appEl = document.getElementById('app');
+  // var appEl = document.getElementById('app');
   //setup routes to start w/ the `#` symbol
   m.route.mode = 'search';
 
@@ -591,13 +593,13 @@
   m.route.mode = 'search';
 
   //define a route
-  var videos = {
-    controller: function() {
-    },
-    view: function() {
-      return m('a[href="/video/blahblah"]', {config: m.route}, 'go to page 2');
-    }
-  };
+  // var videos = {
+  //   controller: function() {
+  //   },
+  //   view: function() {
+  //     return m('a[href="/video/blahblah"]', {config: m.route}, 'go to page 2');
+  //   }
+  // };
 
   // var video = {
   //   controller: function() {
@@ -646,16 +648,24 @@
   m.module(document.getElementById('videoList'), new app.videoList());
 
   var videoPlayerEl = document.getElementById('videoPlayer');
-  console.log('videoPlayerEl: ', videoPlayerEl);
 
   // infinite loop
   m.route(
     videoPlayerEl,
     '/videos/', {
-      // '/videos': new app.videoList(),
+      '/videos': new app.videoList(),
       '/video/:videoID': new app.videoPlayer()
     }
   );
 
+  // FastClick
+  WINDOW.addEventListener('load', function() {
+      /* global FastClick */
+      /* jshint strict:false */
+      FastClick.attach(document.body);
+  }, false);
+
+  // m.module(document.body, app);
+
   // m.route.param('videoID', '7f4adfbe-6329-417b-952b-e2fcc68339cf')
-})(window);
+})(window, document);
