@@ -8,12 +8,20 @@
 
   var app = {};
 
-  app.autoplay = false;
-  app.paginateURL = 'http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?WCM_PI=1&cmpntid=eca581a8-c028-48fa-a7ea-e52402f494fe&srv=cmpnt&source=library&WCM_Page.eca581a8-c028-48fa-a7ea-e52402f494fe={page}';
-
-  app.title = 'FIDM Video Gallery';
   app.velocity = Velocity;
-  app.videoWidth = 108;
+
+  app.guid = (function() {
+    // credit: http://stackoverflow.com/a/105074
+    function s4() {
+      return Math.floor((1 + Math.random()) * 0x10000)
+                 .toString(16)
+                 .substring(1);
+    }
+    return function() {
+      return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+             s4() + '-' + s4() + s4() + s4();
+    };
+  })();
 
   // Model
   app.Video = function(data) {
@@ -26,6 +34,11 @@
     this.duration   = m.prop(data.duration);
     this.poster     = m.prop(data.poster);
     this.content    = m.prop(data.content);
+    // this.id         = m.prop(app.guid());
+    this.id         = m.prop(data.title + data.duration);
+    // console.log('this.id: ', this.id());
+
+    this.url; // name + site path
   };
 
   app.videoPlayer = function() {
@@ -41,7 +54,7 @@
       if (!isInitialized) {
         var videoEl = element.getElementsByTagName('video')[0];
 
-        videoEl.style.width = app.videoWidth + 'px';
+        videoEl.style.width = app.vm.videoWidth() + 'px';
 
         app.velocity(videoEl, {width: '100%'}, {
           complete: function() {
@@ -51,8 +64,21 @@
       }
     };
 
-    videoPlayer.view = function() {
-      var video = app.vm.selectedVideo();
+    videoPlayer.controller = function() {
+      console.log('videoPlayer controller...');
+    };
+
+    videoPlayer.autoplay = m.prop(false);
+
+    videoPlayer.view = function(controller) {
+      // var video = app.vm.selectedVideo();
+      var video = controller.video;
+      console.log('controller.video: ', controller.video);
+
+      if (!video) {
+        console.log('no video :(', controller);
+        debugger;
+      }
 
       return video ? [
         m('div', {
@@ -66,7 +92,7 @@
           }
         }, [
           m('video', {
-            autoplay: app.autoplay,
+            autoplay: this.autoplay(),
             controls: true,
             style: {
               width: '100%', maxWidth: '640px'
@@ -122,6 +148,12 @@
 
     var videoList = {};
 
+    videoList.controller = function() {
+      console.log('video list controller..');
+
+      this.data = app.vm.videos;
+    };
+
     videoList.init = function() {
       videoList.next.fetch();
     };
@@ -160,10 +192,6 @@
       }
     };
 
-    app.vm.nextPageURL = function(page) {
-      return app.sub(app.paginateURL, {page: page + 1});
-    };
-
     videoList.next = {};
 
     videoList.next.fetch = function() {
@@ -176,9 +204,13 @@
 
         m.startComputation();
 
-        var promise = vm.get(vm.nextPageURL(page));
+        var url = vm.url();
+
+        var promise = vm.get(url);
+        console.log('promise: ', promise);
 
         promise.then(function(promisedData) {
+          console.log('promisedData: ', promisedData);
           videoList._loading = false;
 
           var result = promisedData.result;
@@ -198,6 +230,10 @@
         });
 
         return promise;
+      }
+      else {
+        // debugging
+        console.log('video list loading');
       }
     };
 
@@ -230,7 +266,7 @@
             }
           }, [
           data.map(function(video, index) {
-            var selectedVideo = app.vm.selectedVideo();
+            var selectedVideo = false;
 
             if (selectedVideo && (video.title() === selectedVideo.title())) {
               return m('div.row', {
@@ -246,7 +282,7 @@
                       event.preventDefault();
                       event.stopPropagation();
 
-                      ctrl.binds(null);
+                      // ctrl.binds(null);
                     }
                   },
                   tabindex: -1
@@ -272,11 +308,14 @@
                     event.preventDefault();
                     event.stopPropagation();
 
-                    ctrl.binds(video);
+                    // ctrl.binds(video);
                   }
                 },
                 onclick: function() {
-                  ctrl.binds(video);
+                  // ctrl.binds(video);
+                  var id = video.id();
+                  console.log('video.id: ', id);
+                  m.route('/video/' + id);
                 }
               }, [
               m('hr'),
@@ -298,7 +337,7 @@
                     marginBottom: 0 // bootstrap :/
                   },
                   src: video.thumbnail(),
-                  width: app.videoWidth
+                  width: app.vm.videoWidth()
                 }),
                 m('div.duration', {style: {
                   backgroundColor: '#000',
@@ -319,7 +358,7 @@
       ];
     };
 
-    videoList.init();
+    // videoList.init(); // idk??
 
     return videoList;
   };
@@ -405,17 +444,118 @@
     var vm = app.vm;
 
     return m('div',
-      m('h1', app.title),
+      m('h1', ''),
       vm.videoList.view({data: vm.videos, binds: vm.selectedVideo})
-    )
+    );
   };
 
   // Init
-  app.vm.init();
+  // app.vm.init();
+
+  m.route.mode = 'search';
+
+  var login = {
+    controller: function() {
+      this.id = 'login';
+    },
+    view: function(controller) {
+      return m('div', [
+        m('div', controller.id),
+        m('a[href="/"', {config: m.route}, "home")
+      ]);
+    }
+  };
+
+  var dashboard = {
+    controller: function() {
+      this.id = 'dashboard';
+    },
+    view: function(controller) {
+      return m('div', [
+        m('div', controller.id),
+        m('a[href="/"', {config: m.route}, "home")
+      ]);
+    }
+  };
+
+  //a sample module
+  var home = {
+    controller: function() {
+      this.id = 'home';
+    },
+    view: function(controller) {
+      return m('div', [
+        m('div', controller.id),
+        m('a.login', {
+          onclick: m.route.bind(m.route, '/login')
+        }, 'login'),
+        m('a.dashboard', {
+          onclick: m.route.bind(m.route, '/dashboard')
+        }, 'dashboard')
+      ]);
+    }
+  };
+
+  var video = {
+    controller: function() {
+      this.id = m.route.param('videoID');
+
+      this.video = app.vm.getVideoById(this.id);
+
+      this.data = app.vm.videos; // some DRY
+    },
+    view: function(controller) {
+      return m('div', [
+        m('div', controller.id),
+        app.vm.videoPlayer.view(controller),
+        app.vm.videoList.view(controller)
+      ]);
+    }
+  };
+
+  app.vm.getVideoById = function(id) {
+    var videos = vm.videos();
+
+    if (videos.length) {
+      for (var index = 0; index < videos.length; index++) {
+        var video = videos[index];
+
+        if (video.id() === id) {
+          return video;
+        }
+      }
+    }
+
+    return null;
+  };
+
+  // app.vm = {};
+
+  var vm = app.vm;
+
+  vm.videoWidth = m.prop(108);
+  vm.videos = m.prop([]);
+  vm.videoList = new app.videoList();
+  vm.videoPlayer = new app.videoPlayer();
+  vm.fetch = vm.videoList.next.fetch;
+  vm.currentPage = m.prop(1);
+  vm.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
+
+  vm.fetch().then(function(stuff) {
+    console.log('stuff: ', stuff);
+
+    // var videoList = new app.videoList();
+    // console.log('videoList: ', videoList);
+
+    m.route(document.body, '/', {
+      '/': vm.videoList,
+      '/video/:videoID...': video
+    });
+  });
 
   // Runtime Developing
   window.app = app;
 
   // Draw
-  m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
+  // m.module(document.getElementById('app'), {controller: app.controller, view: app.view});
 })(window);
