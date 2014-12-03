@@ -4,7 +4,7 @@
 
 // todo: move styles to stylesheet
 
-(function(window) {
+(function(window, document) {
   // var BASE_INT  = 10;
 
   var app = {};
@@ -59,11 +59,15 @@
     this.href       = m.prop('');
     this.id         = m.prop(app.guid());
     this.mp4        = m.prop(data.mp4);
+    console.log('data.mp4: ', data.mp4);
     this.ogg        = m.prop(data.ogg);
     this.poster     = m.prop(data.poster);
     this.thumbnail  = m.prop(data.src);
     this.title      = m.prop(data.title);
     this.webm       = m.prop(data.webm);
+
+    // temp
+    this.date       = m.prop('September 21, 2014');
   };
 
   app.videoPlayer = function() {
@@ -87,12 +91,8 @@
         var videoEl = element.getElementsByTagName('video')[0];
 
         videoEl.style.width = videoPlayer.vm.width + 'px';
-        console.log('videoEl.style.width: ', videoEl.style.width);
-
-        console.log('fade in');
         app.velocity(videoEl, {width: '100%'}, {
           complete: function() {
-            console.log('complete!');
             videoEl.focus();
           }
         });
@@ -109,18 +109,55 @@
         var vm          = videoPlayer.vm;
 
         returnVal       = [
-          m('h1', {
-            style   : { cursor: 'pointer' },
-            onclick : m.route.bind(m.route, '/videos')
-          }, app.vm.title),
+          m('div.header', { style: {
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            left: 0,
+            zIndex: 1999999999
+          }}, [
+            m('div.header-container', { style: {
+              background: '#fff',
+              borderBottom: '1px solid #e8e8e8',
+              minWidth: 0,
+              paddingBottom: '8px',
+              paddingTop: '7px'
+            }}, [
+              m('div.row', [
+                m('div.col-md-3', [
+                  m('div.title', {
+                    style : {
+                      cursor: 'pointer',
+                      height: '34px',
+                      fontSize: '24px',
+                      lineHeight: '34px',
+                      whiteSpace: 'nowrap'
+                    },
+                    onclick : m.route.bind(m.route, '/videos')
+                  }, app.vm.title)
+                ]),
+                m('div.col-md-4.pull-right', [
+                  m('div.input-group', [
+                    m('input.form-control', {placeholder: 'This is just a proof of concept.'}),
+                    m('span.input-group-btn', [
+                      m('button.btn.btn-default', [
+                        m('i.fa.fa-search')
+                      ])
+                    ])
+                  ])
+                ])
+              ])
+            ])
+          ]),
           m('div.videoPlayer', {
             config: function() {
               vm.fadeIn.apply(this, arguments);
             },
             style: {
-              display  : 'inline-block',
-              maxWidth : '640px',
-              width    : '100%'
+              display    : 'inline-block',
+              maxWidth   : '640px',
+              paddingTop : '2em',
+              width      : '100%'
             }
           }, [
             m('video', {
@@ -147,13 +184,16 @@
             m('section.card', { style: {
                 margin   : '1em 0 2em 0',
                 maxWidth : 'none',
+                textAlign : 'left',
                 width    : '100%'
               }}, [
               m('h1', { style: {
                 fontSize: '36px'
               }}, app.strip(htmlTitle)),
+              m('strong', { style: {
+                margin: '1em'
+              }}, video.date()),
               m('div.content', { style: {
-                textAlign : 'left',
                 margin    : '1em'
               }}, app.strip(htmlContent))
             ])
@@ -338,17 +378,25 @@
             videoList.next.fetch();
           }
         },
-        onscroll: function(scrollEvent) {
-          console.log('scrollEvent: ', scrollEvent);
-        },
         tabindex: 0,
         style: {
           cursor  : 'pointer',
           display : 'block',
           width   : 'auto'
-        }
-      }, [
-        m('span', 'load more')
+        }}, [
+        m('button', { style: {
+          background: '#f8f8f8',
+          border: 'solid 1px #d3d3d3',
+          color: '#666',
+          fontHeight: 'normal',
+          fontSize: '13px',
+          lineHeight: '30px',
+          marginBottom: '1em',
+          minHeight: '30px',
+          outline: '0',
+          padding: '0 10px',
+          textAlign: 'center'
+        }}, 'Show more items')
       ]);
     };
 
@@ -460,7 +508,7 @@
 
   app.vm.videoList   = new app.videoList();
   app.vm.videoPlayer = new app.videoPlayer();
-  app.vm.title = 'FIDM Videos';
+  app.vm.title       = 'FIDM Videos';
 
   m.route.mode = 'search';
 
@@ -472,7 +520,6 @@
     }
   );
 
-  // FastClick
   window.addEventListener('load', function() {
       /* global FastClick */
       /* jshint strict:false */

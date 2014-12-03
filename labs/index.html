@@ -47,9 +47,32 @@
       margin-bottom: 1em;
     }
 
-    strong {
-      color: #539D00;
-      font-weight: 300;
+    @keyframes fly-in-from-left {
+      from {
+        transform:translateY(15rem) rotate(15deg);
+        opacity:0;
+      }
+    }
+
+    @keyframes fly-in-from-right {
+      from {
+        transform:translateY(15rem) rotate(-15deg);
+        opacity:0;
+      }
+    }
+
+    @keyframes fly-out-from-left {
+      from {
+        transform:translateY(15rem) rotate(15deg);
+        opacity:100;
+      }
+    }
+
+    @keyframes fly-out-from-right {
+      from {
+        transform:translateY(15rem) rotate(-15deg);
+        opacity:100;
+      }
     }
 
     h2 {
