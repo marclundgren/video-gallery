@@ -4,75 +4,39 @@
 
 // todo: move styles to stylesheet
 
-(function(WINDOW, doc) {
-
-  /*
-
-  //a sample module
-  var video = {
-    controller: function() {
-      this.id = m.route.param('videoID');
-      console.log('video id: ', this.id);
-    },
-
-    view: function(controller) {
-      console.log('controller: ', controller);
-      return m('div', [
-        m('div', {
-          style: {
-            padding: '1em',
-            fontSize: '2em'
-          }
-        }, controller.id),
-        videoList.view(controller)
-      ]);
-    }
-  };
-
-  var videoList = {
-    controller: function() {
-      this.id = 'list of videos...';
-    },
-    view: function(controller) {
-      console.log('controller: ', controller);
-      console.log('videolist id: ', this.id);
-      return m('div.list', [
-        m('div', {
-          style: {display: 'block', cursor: 'pointer'},
-          onclick: m.route.bind(m.route, '/video/johndoe')
-        }, 'johndoe'),
-        m('div', {
-          style: {display: 'block', cursor: 'pointer'},
-          onclick: m.route.bind(m.route, '/video/foo')
-        }, 'foo'),
-        m('div', {
-          style: {display: 'block', cursor: 'pointer'},
-          onclick: m.route.bind(m.route, '/video/bar')
-        }, 'bar')
-      ]);
-    }
-  };
-
-  //setup routes to start w/ the `#` symbol
-  m.route.mode = 'search';
-
-  //define a route
-  var appEl = document.getElementById('app');
-
-  m.route(appEl, '/videos/', {
-      '/videos': videoList,
-      '/video/:videoID...': video
-  });
-
-  return;
-  */
+(function(window) {
+  // var BASE_INT  = 10;
 
   var app = {};
 
-  app.velocity = Velocity;
+  // Utilities
 
-  // Model
+  // Stip utility
+  app.strip = function(html) {
+    // http://stackoverflow.com/a/822486
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
 
+  // Sub utility
+  app.sub = function(str, obj) {
+    var keys = Object.keys(obj);
+
+    keys.map(function(key) {
+      var re = new RegExp('{' + key + '}', 'gm');
+      str = str.replace(re, obj[key]);
+    });
+
+    return str;
+  };
+
+  // Array Flatten utility
+  app.array_flatten = function(arrays) {
+    return [].concat.apply([], arrays);
+  };
+
+  // GUID utility
   app.guid = (function() {
     function s4() {
       return Math.floor((1 + Math.random()) * 0x10000)
@@ -85,165 +49,145 @@
     };
   })();
 
+  app.velocity = Velocity;
+
+  // Model
   app.Video = function(data) {
-    this.thumbnail  = m.prop(data.src);
-    this.title      = m.prop(data.title);
+    this.content    = m.prop(data.content);
+    this.duration   = m.prop(data.duration);
+    this.flash      = m.prop(data.flash);
+    this.href       = m.prop('');
     this.id         = m.prop(app.guid());
     this.mp4        = m.prop(data.mp4);
-    this.webm       = m.prop(data.webm);
     this.ogg        = m.prop(data.ogg);
-    this.flash      = m.prop(data.flash);
-    this.duration   = m.prop(data.duration);
     this.poster     = m.prop(data.poster);
-    this.content    = m.prop(data.content);
+    this.thumbnail  = m.prop(data.src);
+    this.title      = m.prop(data.title);
+    this.webm       = m.prop(data.webm);
   };
 
   app.videoPlayer = function() {
     var videoPlayer = {};
 
+    videoPlayer.vm  = {};
+
     videoPlayer.controller = function() {
-      this.id = m.route.param('videoID');
-
-      var video = app.vm.getVideoById(this.id);
-      this.video = video;
-
+      this.data  = app.vm.getVideos;
+      this.video = app.vm.getVideoById(m.route.param('videoID'));
     };
-
-    videoPlayer.vm = {};
 
     videoPlayer.vm.init = function() {
-      this.video = m.prop();
+      this.autoplay = m.prop(false);
+      this.video    = m.prop();
+      this.width    = 108;
     };
 
-    videoPlayer.width = 108;
-
-    videoPlayer.fadeIn = function(element, isInitialized) {
+    videoPlayer.vm.fadeIn = function(element, isInitialized) {
       if (!isInitialized) {
         var videoEl = element.getElementsByTagName('video')[0];
 
-        videoEl.style.width = videoPlayer.width + 'px';
+        videoEl.style.width = videoPlayer.vm.width + 'px';
+        console.log('videoEl.style.width: ', videoEl.style.width);
 
+        console.log('fade in');
         app.velocity(videoEl, {width: '100%'}, {
           complete: function() {
+            console.log('complete!');
             videoEl.focus();
           }
         });
       }
     };
 
-    videoPlayer.autoplay = false;
-
     videoPlayer.view = function(controller) {
-      var vm = app.vm;
-
+      var returnVal;
       var video = controller.video;
 
-      return video ? [
-        m('div.videoPlayer', {
-          config: function() {
-            videoPlayer.fadeIn.apply(this, arguments);
-          },
-          style: {
-            display: 'inline-block',
-            maxWidth: '640px',
-            width: '100%'
-          }
-        }, [
-          m('video', {
-            autoplay: videoPlayer.autoplay,
-            controls: true,
-            style: {
-              width: '100%', maxWidth: '640px'
-            },
-            onkeydown: function(event) {
-              var keyCode = event.keyCode;
+      if (video) {
+        var htmlTitle   = video.title();
+        var htmlContent = video.content();
+        var vm          = videoPlayer.vm;
 
-              // down, right arrow
-              if (keyCode === 39 || keyCode === 40 || keyCode === 37 || keyCode === 38) {
-                event.stopPropagation();
-              }
+        returnVal       = [
+          m('h1', {
+            style   : { cursor: 'pointer' },
+            onclick : m.route.bind(m.route, '/videos')
+          }, app.vm.title),
+          m('div.videoPlayer', {
+            config: function() {
+              vm.fadeIn.apply(this, arguments);
             },
-            poster: video.poster()
+            style: {
+              display  : 'inline-block',
+              maxWidth : '640px',
+              width    : '100%'
+            }
           }, [
-            m('source', { src: video.mp4(),  type: 'video/mp4'  }),
-            m('source', { src: video.webm(), type: 'video/webm' }),
-            m('source', { src: video.ogg(),  type: 'video/ogg'  })
+            m('video', {
+              autoplay : vm.autoplay(),
+              controls : true,
+              style    : {
+                maxWidth : '640px',
+                width    : '100%'
+              },
+              onkeydown: function(event) {
+                var keyCode = event.keyCode;
+
+                // down, right arrow
+                if (keyCode === 39 || keyCode === 40 || keyCode === 37 || keyCode === 38) {
+                  event.stopPropagation();
+                }
+              },
+              poster: video.poster()
+            }, [
+              m('source', { src: video.mp4(),  type: 'video/mp4'  }),
+              m('source', { src: video.webm(), type: 'video/webm' }),
+              m('source', { src: video.ogg(),  type: 'video/ogg'  })
+            ]),
+            m('section.card', { style: {
+                margin   : '1em 0 2em 0',
+                maxWidth : 'none',
+                width    : '100%'
+              }}, [
+              m('h1', { style: {
+                fontSize: '36px'
+              }}, app.strip(htmlTitle)),
+              m('div.content', { style: {
+                textAlign : 'left',
+                margin    : '1em'
+              }}, app.strip(htmlContent))
+            ])
           ]),
-          m('section.card', { style: {
-              width: '100%',
-              maxWidth: 'none',
-              margin: '1em 0 2em 0'
-            }}, [
-            m('h1', { style: {
-              fontSize: '36px'
-            }}, app.strip(video.title())),
-            m('div.content', { style: {
-              textAlign: 'left',
-              margin: '1em'
-            }}, app.strip(video.content()))
-          ])
-        ])
-      ] : m('');
+          app.vm.videoList.view(controller)
+        ];
+      }
+      else {
+        returnVal = m('');
+      }
+
+      return returnVal;
     };
+
+    videoPlayer.vm.init();
 
     return videoPlayer;
   };
 
-  app.strip = function(html) {
-    // http://stackoverflow.com/a/822486
-    var tmp = document.createElement('DIV');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
-  };
-
-  app.sub = function(str, obj) {
-    var keys = Object.keys(obj);
-
-    keys.map(function(key) {
-      var re = new RegExp('{' + key + '}', 'gm');
-
-      str = str.replace(re, obj[key]);
-    });
-
-    return str;
-  };
-
-  app.array_flatten = function(arrays) {
-    return [].concat.apply([], arrays);
-  };
-
   app.videoList = function() {
-    var BASE_INT = 10;
-
     var videoList = {};
 
-    videoList.controller = function() {
-      this.data = app.vm.videos;
+    videoList.vm  = {};
+
+    videoList.vm.init = function() {
+      this.videos       = m.prop([]);
+      this.currentPage  = m.prop(1);
+      this.loading      = m.prop(false);
+      this.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
+
+      videoList.next.fetch();
     };
 
-    videoList.init = function() {
-      return;
-
-      // m.sto
-      m.startComputation();
-      videoList.next.fetch().then(function() {
-        m.endComputation();
-      });
-    };
-
-    videoList.keyUp = function(event) {
-      var keyCode = event.keyCode;
-
-      if (keyCode === 39 || keyCode === 40) {
-        event.preventDefault();
-
-        event.currentTarget.firstChild.focus();
-      }
-    };
-
-    videoList.item = {};
-
-    videoList.item.keyDown = function(event) {
+    videoList.vm.keyDown = function(event) {
       var keyCode = event.keyCode;
 
       if (keyCode === 39 || keyCode === 40 || keyCode === 37 || keyCode === 38) {
@@ -267,7 +211,7 @@
 
     videoList.next = {};
 
-    videoList.next.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
+    // videoList.next.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
 
     videoList.next.getParams = function(url) {
       var vars = {};
@@ -275,39 +219,37 @@
       url.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(m, key, value){
           vars[key] = value;
       });
+
       return vars;
     };
 
     videoList.next.jsonp = function(config) {
-      config = config || {};
-
-      var url = config.url;
-
+      config          = config || {};
+      var url         = config.url;
       var callbackKey = config.callbackKey || this.getParams(url).jsoncallback || 'callback';
-
-      var promise = new Promise(function(resolve, reject) {
+      var promise     = new Promise(function(resolve, reject) {
         if (!url) {
           reject('no url');
         }
-        else if (typeof WINDOW[callbackKey] !== 'undefined') {
+        else if (typeof window[callbackKey] !== 'undefined') {
           reject(Error('callback key ' + callbackKey + ' already exists'));
         }
         else {
           var request = m.request({
-            background: true,
-            dataType: 'jsonp',
-            method: config.method || 'GET',
-            url: url
+            background : true,
+            dataType   : 'jsonp',
+            method     : config.method || 'GET',
+            url        : url
           });
 
-          WINDOW[callbackKey] = function(result) {
+          window[callbackKey] = function(result) {
             resolve({result: result, request: request});
           };
         }
       });
 
       promise.then(function() {
-        delete WINDOW[callbackKey];
+        delete window[callbackKey];
       });
 
       return promise;
@@ -324,13 +266,10 @@
         var anchorElements = element.getElementsByTagName('a');
 
         for(var i=0; i < anchorElements.length; i++) {
-          var el = anchorElements[i];
-
+          var el        = anchorElements[i];
           var attribute = el.getAttribute && el.getAttribute('title');
-
-          var isString = ((typeof attribute).toLowerCase() === 'string') && (attribute.length > 0);
-
-          var match = isString && attributeValue.test(attribute);
+          var isString  = ((typeof attribute).toLowerCase() === 'string') && (attribute.length > 0);
+          var match     = isString && attributeValue.test(attribute);
 
           if (match) {
             return el;
@@ -341,158 +280,119 @@
       return null;
     };
 
-    videoList.currentPage = m.prop(1);
+    videoList.next.videoFactory = function(videos) {
+      return videos.map(function(item) {
+        return new app.Video(item);
+      });
+    };
 
     videoList.next.fetch = function() {
-      var vm = app.vm;
-      var self = this;
+      var url     = videoList.vm.url();
+      var promise = videoList.next.get(url);
 
-      if (!videoList._loading) {
-        videoList._loading = true;
+      videoList.vm.loading(true);
+      m.startComputation();
 
-        // var url = vm.url();
-        var url = this.url();
+      promise.then(function(promisedData) {
+        var result         = promisedData.result;
+        var videos         = videoList.next.videoFactory(result.videos);
+        var vm             = videoList.vm;
+        var videosMerged   = app.array_flatten([vm.videos(), videos]);
+        var element        = document.createElement('div');
+        // var page           = parseInt(result.currentPage, BASE_INT);
 
-        var promise = this.get(url);
+        vm.loading(false);
 
-        // m.startComputation();
+        vm.videos(videosMerged);
 
-        promise.then(function(promisedData) {
-          videoList._loading = false;
+        element.innerHTML = result.allPages;
 
-          var result = promisedData.result;
+        var nextPage = vm.currentPage() + 1;
+        var title    = app.sub('Link to page {page}', { page: nextPage });
+        var linkPage = videoList.next.getElementByTitle(element, title);
+        var url      = linkPage ? '//fidm.edu' + linkPage.getAttribute('href') : null;
+        // I don't know how to make the navigation element in WCM reference the fidm domain. So I have no choice but to do it here.
 
-          var videos = result.videos.map(function(item) {
-            return new app.Video(item);
-          });
+        videoList.vm.url(url);
 
-          vm.videos(app.array_flatten([vm.videos(), videos]));
+        vm.currentPage(nextPage);
 
-          var page = parseInt(result.currentPage, BASE_INT);
+        m.endComputation();
+      }, function(brokenPromise) {
+        videoList.vm.loading(false);
 
-          // vm.currentPage(page);
-          videoList.currentPage(page);
+        app.error = new Error(brokenPromise);
 
-          var element = document.createElement('div');
+        m.endComputation();
+      });
 
-          element.innerHTML = result.allPages;
-
-          var nextPage = vm.currentPage() + 1;
-
-          var title = app.sub('Link to page {page}', {
-            page: nextPage
-          });
-
-          var linkPage = videoList.next.getElementByTitle(element, title);
-
-          var url;
-
-          if (linkPage) {
-            // I don't know how to make the navigation element in WCM reference the fidm domain. So I have no choice but to do it here.
-
-            url = '//fidm.edu' + linkPage.getAttribute('href');
-          }
-          else {
-            url = null;
-          }
-
-          // vm.url(url);
-          self.url(url);
-
-          vm.currentPage(nextPage);
-
-          // m.endComputation();
-        }, function(brokenPromise) {
-          app.error = new Error(brokenPromise);
-
-          videoList._loading = false;
-        });
-
-        return promise;
-      }
+      return promise;
     };
 
     videoList.next.view = function() {
+      var vm = videoList.vm;
+
       return m('section.next', {
         onclick: function() {
-          videoList.next.fetch();
+          if (!vm.loading()) {
+            videoList.next.fetch();
+          }
+        },
+        onscroll: function(scrollEvent) {
+          console.log('scrollEvent: ', scrollEvent);
         },
         tabindex: 0,
         style: {
-          cursor: 'pointer',
-          display: 'block',
-          width: 'auto'
+          cursor  : 'pointer',
+          display : 'block',
+          width   : 'auto'
         }
       }, [
         m('span', 'load more')
       ]);
     };
 
-    videoList.view = function(ctrl) {
-      var data = ctrl.data();
+    videoList.controller = function() {
+      this.data = videoList.vm.videos;
+    };
+
+    videoList.view = function(controller) {
+      var vm   = videoList.vm;
+      var data = controller.data();
 
       return [
-        data ? m('div.videoList', {
-            style: {
-              textAlign: 'center'
-            }
+        data && data.length ? m('div.videoList', {
+            style: { textAlign: 'center' }
           }, [
           data.map(function(video, index) {
-            // var selectedVideo = app.vm.selectedVideo();
-            var selectedVideo = false;
-
-            if (false && selectedVideo && (video.title() === selectedVideo.title())) {
-              return m('section.card', {
-                  style: {
-                    display: 'block',
-                    width: 'auto'
-                  },
-                  onkeydown: videoList.item.keyDown,
-                  onkeypress: function(event) {
-                    if (event.keyCode === 27) {
-                      // esc, clear the video
-
-                      event.preventDefault();
-                      event.stopPropagation();
-
-                      // ctrl.binds(null);
-                    }
-                  },
-                  tabindex: -1
-                }, [
-                app.vm.videoPlayer.view()
-              ]);
-            }
-
-            // video.id3
+            var tabindex     = (index === 0) ? 0 : -1;
+            var routeToVideo = m.route.bind(m.route, '/video/' + video.id());
 
             return m('section.card', {
-                style: {
-                  cursor: 'pointer'
-                },
-                tabindex: (index === 0) ? 0 : -1,
-                onkeydown: videoList.item.keyDown,
-                onkeypress: function(event) {
-                  var keyCode = event.keyCode;
+              style: { cursor: 'pointer' },
+              tabindex: tabindex,
+              onkeydown: vm.keyDown,
+              onkeypress: function(event) {
+                var keyCode = event.keyCode;
 
+                if (keyCode === 13) {
                   // enter
-                  if (keyCode === 13) {
-                    event.preventDefault();
-                    event.stopPropagation();
+                  event.preventDefault();
+                  event.stopPropagation();
 
-                    // ctrl.binds(video);
-                  }
-                },
-                onclick: m.route.bind(m.route, '/video/' + video.id())
-              }, [
+                  routeToVideo();
+                }
+              },
+              onclick: routeToVideo
+            }, [
               m('h4',
                 {
                   style: {
-                    marginTop: '0px',
-                    overflow: 'hidden',
-                    textAlign: 'left',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
+                    marginTop    : '0px',
+                    overflow     : 'hidden',
+                    textAlign    : 'left',
+                    textOverflow : 'ellipsis',
+                    whiteSpace   : 'nowrap'
                   }
                 },
                 app.strip(video.title())
@@ -502,26 +402,24 @@
               }}, [
                 m('img.thumbnail', {
                   style: {
-                    // height: 'auto',
-                    // width: 'auto',
-                    height: '70px',
-                    width: '118px',
-                    textAlign: 'right',
-                    marginBottom: 0 // bootstrap :/
+                    height       : '70px',
+                    marginBottom : 0, // bootstrap :/
+                    textAlign    : 'right',
+                    width        : '118px'
                   },
-                  src: video.thumbnail(),
-                  width: app.videoWidth
+                  src   : video.thumbnail(),
+                  width : app.videoWidth
                 }),
-                m('div.duration', {style: {
-                  backgroundColor: '#000',
-                  bottom: '6px',
-                  color: '#fff',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  opacity: 0.75,
-                  padding: '0px 4px',
-                  position: 'absolute',
-                  left: '21px'
+                m('div.duration', { style: {
+                  backgroundColor : '#000',
+                  bottom          : '6px',
+                  color           : '#fff',
+                  fontSize        : '11px',
+                  fontWeight      : 'bold',
+                  left            : '21px',
+                  opacity         : 0.75,
+                  padding         : '0px 4px',
+                  position        : 'absolute'
                 }}, video.duration())
               ])
             ]);
@@ -531,7 +429,7 @@
       ];
     };
 
-    videoList.init();
+    videoList.vm.init();
 
     return videoList;
   };
@@ -539,12 +437,12 @@
   // View Model
   app.vm = {};
 
-  app.vm.currentPage = m.prop(1);
-  app.vm.videos = m.prop([]);
-
+  app.vm.getVideos = function() {
+    return app.vm.videoList.vm.videos();
+  };
 
   app.vm.getVideoById = function(id) {
-    var videos = app.vm.videos();
+    var videos = app.vm.getVideos();
 
     for (var index = 0; index < videos.length; index++) {
       var item = videos[index];
@@ -557,115 +455,28 @@
     return null;
   };
 
-  app.vm.init = function() {
-    this.currentPage = m.prop(1);
-    this.videos = m.prop([]);
-
-    // this.videoPlayer = new app.videoPlayer();
-    // this.url = m.prop('http://fidm.edu/wps/wcm/connect/wmo%20content/en/about/fidm%20video%20gallery/debut?cmpntid=550064f6-50bb-446e-bd88-52f7d18a7c40&source=library&srv=cmpnt&WCM_Page.ResetAll=TRUE&CACHE=NONE&CONTENTCACHE=NONE&CONNECTORCACHE=NONE');
-    // this.videoList = new app.videoList();
-    // this.selectedVideo = m.prop();
-    // this.filterQuery = m.prop('');
-
-    //define a route
-
-    // m.route(appEl, '/videoList', {
-    //   '/videoList': this.videoList,
-    //   '/videoPlayer/:videoID...': this.videoPlayer
-    // });
-  };
-
-  // var appEl = document.getElementById('app');
-  //setup routes to start w/ the `#` symbol
-  m.route.mode = 'search';
-
-  //a sample module
-  // var videos = {
-  //   controller: function() {
-  //     this.id = m.route.param('videoID');
-  //   },
-  //   view: function(controller) {
-  //     return m('div', controller.id);
-  //   }
-  // };
-
-  //setup routes to start w/ the `#` symbol
-  m.route.mode = 'search';
-
-  //define a route
-  // var videos = {
-  //   controller: function() {
-  //   },
-  //   view: function() {
-  //     return m('a[href="/video/blahblah"]', {config: m.route}, 'go to page 2');
-  //   }
-  // };
-
-  // var video = {
-  //   controller: function() {
-  //     this.id = m.route.param('videoID');
-  //     console.log('this.id: ', this.id);
-  //   },
-  //   view: function(controller) {
-  //     console.log('controller: ', controller);
-
-  //     return m('div', [
-  //       m('div', controller.id),
-  //       m('a[href="/videos"]', {config: m.route}, 'go to page 1'),
-  //       videos.view()
-  //     ]);
-  //   }
-  // };
-
-  // var videoList = new app.videoList();
-
-  // m.route(appEl, '/videos', {
-  //   '/videos': videoList,
-  //   '/video/:videoID...': video
-  // });
-
-  // View
-  app.view = function() {
-    var vm = app.vm;
-
-    return m('div',
-      m('h1', app.title),
-      vm.videoList.view()
-    );
-  };
-
-  app.controller= function() {
-    this.data = app.vm.videos;
-  };
-
-  // Init
-  // app.vm.init();
-
   // Runtime Developing
   window.app = app;
 
-  // Draw
-  m.module(document.getElementById('videoList'), new app.videoList());
+  app.vm.videoList   = new app.videoList();
+  app.vm.videoPlayer = new app.videoPlayer();
+  app.vm.title = 'FIDM Videos';
 
-  var videoPlayerEl = document.getElementById('videoPlayer');
+  m.route.mode = 'search';
 
-  // infinite loop
   m.route(
-    videoPlayerEl,
+    document.getElementById('videoPlayer'),
     '/videos/', {
-      '/videos': new app.videoList(),
-      '/video/:videoID': new app.videoPlayer()
+      '/videos': app.vm.videoList,
+      '/video/:videoID': app.vm.videoPlayer
     }
   );
 
   // FastClick
-  WINDOW.addEventListener('load', function() {
+  window.addEventListener('load', function() {
       /* global FastClick */
       /* jshint strict:false */
       FastClick.attach(document.body);
   }, false);
 
-  // m.module(document.body, app);
-
-  // m.route.param('videoID', '7f4adfbe-6329-417b-952b-e2fcc68339cf')
 })(window, document);
