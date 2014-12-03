@@ -1,15 +1,15 @@
 /* global m */
-/* global Velocity */
+/* global Velocity, FastClick */
 /* jshint devel:true, strict:false */
 
-// todo: move styles to stylesheet
+// todo: move import structural css from stylesheet
 
 (function(window, document) {
-  // var BASE_INT  = 10;
-
   var app = {};
 
-  // Utilities
+  // App dependancies
+  app.velocity = Velocity;
+  app.fastclick = FastClick;
 
   // Stip utility
   app.strip = function(html) {
@@ -49,8 +49,6 @@
     };
   })();
 
-  app.velocity = Velocity;
-
   // Model
   app.Video = function(data) {
     this.content    = m.prop(data.content);
@@ -59,7 +57,6 @@
     this.href       = m.prop('');
     this.id         = m.prop(app.guid());
     this.mp4        = m.prop(data.mp4);
-    console.log('data.mp4: ', data.mp4);
     this.ogg        = m.prop(data.ogg);
     this.poster     = m.prop(data.poster);
     this.thumbnail  = m.prop(data.src);
@@ -70,6 +67,7 @@
     this.date       = m.prop('September 21, 2014');
   };
 
+  // Module: Video Player
   app.videoPlayer = function() {
     var videoPlayer = {};
 
@@ -213,6 +211,7 @@
     return videoPlayer;
   };
 
+  // Module: Video List
   app.videoList = function() {
     var videoList = {};
 
@@ -482,7 +481,7 @@
     return videoList;
   };
 
-  // View Model
+  // App View Model
   app.vm = {};
 
   app.vm.getVideos = function() {
@@ -506,12 +505,13 @@
   // Runtime Developing
   window.app = app;
 
+  // Init app
   app.vm.videoList   = new app.videoList();
   app.vm.videoPlayer = new app.videoPlayer();
   app.vm.title       = 'FIDM Videos';
 
+  // App routing
   m.route.mode = 'search';
-
   m.route(
     document.getElementById('videoPlayer'),
     '/videos/', {
@@ -520,10 +520,9 @@
     }
   );
 
+  // Attach FastClick
   window.addEventListener('load', function() {
-      /* global FastClick */
-      /* jshint strict:false */
-      FastClick.attach(document.body);
+      app.fastclick.attach(document.body);
   }, false);
 
 })(window, document);
